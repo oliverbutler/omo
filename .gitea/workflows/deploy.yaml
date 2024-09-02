@@ -1,0 +1,11 @@
+name: Deploy
+run-name: ${{ gitea.actor }}'s Deployment
+on: [push]
+
+jobs:
+  Explore-Gitea-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploy to Prod"
+      - run: |
+          ping 10.0.0.40
