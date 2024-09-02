@@ -6,6 +6,7 @@ jobs:
   Explore-Gitea-Actions:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Deploy to Prod"
-      - run: |
-          ping 10.0.0.40
+      - name: Install ping
+        run: sudo apt-get update && sudo apt-get install -y iputils-ping
+      - name: Ping server
+        run: ping -c 4 10.0.0.40
