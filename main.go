@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"oliverbutler/templates"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -20,7 +21,14 @@ import (
 var db *sql.DB
 
 func initDB() error {
-	connStr := "host=10.0.0.40 port=5432 user=dbuser password=password123 dbname=oliverbutler sslmode=disable"
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -147,7 +155,13 @@ func main() {
 		templates.Map(title, string(tripsJSON)).Render(r.Context(), w)
 	})
 
-	http.ListenAndServe(":3000", r)
+	port := os.Getenv("APP_PORT")
+	env := os.Getenv("ENV")
+
+	addr := "0.0.0.0:" + port
+
+	slog.Info(fmt.Sprintf("Starting server on %s in %s mode", addr, env))
+	http.ListenAndServe(addr, r)
 }
 
 func loadTripCache() error {

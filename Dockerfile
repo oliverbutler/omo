@@ -12,5 +12,5 @@ WORKDIR /app
 COPY --from=builder /app/main .
 COPY static ./static
 COPY templates ./templates
-EXPOSE 3000
+EXPOSE 6900
 CMD ["./main"]

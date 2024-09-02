@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  backend:
+    restart: always
+
+  db:
+    restart: always
+    volumes:
+      - /mnt/user/appdata/oliverbutler/postgres:/var/lib/postgresql/data
+
+  minio:
+    restart: always
+    volumes:
+      - /mnt/user/appdata/oliverbutler/minio:/data

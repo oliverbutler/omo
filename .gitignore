@@ -2,6 +2,9 @@
 dist/
 tmp/
 
+minio_data/
+postgres_data/
+
 # dependencies
 node_modules/
 
