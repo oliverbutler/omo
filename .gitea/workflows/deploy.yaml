@@ -12,15 +12,11 @@ jobs:
       - name: Login to Gitea Container Registry
         run: echo "${{ secrets.GITEA_TOKEN }}" | docker login git.oliverbutler.uk -u ${{ gitea.actor }} --password-stdin
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: git.oliverbutler.uk/${{ gitea.repository }}:latest
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build Docker image
+        run: docker build -t git.oliverbutler.uk/${{ gitea.repository }}:latest .
+
+      - name: Push Docker image
+        run: docker push git.oliverbutler.uk/${{ gitea.repository }}:latest
 
       - name: Show built image
         run: docker images
