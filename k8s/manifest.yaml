@@ -101,14 +101,6 @@ spec:
       securityContext:
         runAsUser: 999
         runAsGroup: 999
-      initContainers:
-        - name: init-chmod-data
-          image: busybox
-          command: ['sh', '-c', 'chmod 700 /var/lib/postgresql/data']
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
-              subPath: postgres
       containers:
         - name: omo-db
           image: postgres:16.4
