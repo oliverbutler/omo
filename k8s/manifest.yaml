@@ -14,7 +14,7 @@ data:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: omo-postgres-pvc
+  name: minio-pvc
 spec:
   accessModes:
     - ReadWriteMany
@@ -22,13 +22,13 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  volumeName: omo-nfs-pv-postgres
+  volumeName: omo-nfs-pv
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: omo-minio-pvc
+  name: postgres-pvc
 spec:
   accessModes:
     - ReadWriteMany
@@ -36,13 +36,13 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  volumeName: omo-nfs-pv-minio
+  volumeName: omo-nfs-pv
 
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: omo-nfs-pv-postgres
+  name: omo-nfs-pv
 spec:
   capacity:
     storage: 100Gi # Adjust this value based on your needs
@@ -53,24 +53,7 @@ spec:
   storageClassName: nfs
   nfs:
     server: 10.0.0.40
-    path: '/mnt/user/omo/postgres'
-
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: omo-nfs-pv-minio
-spec:
-  capacity:
-    storage: 100Gi # Adjust this value based on your needs
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: nfs
-  nfs:
-    server: 10.0.0.40
-    path: '/mnt/user/omo/minio'
+    path: '/mnt/user/omo'
 
 ---
 apiVersion: v1
@@ -154,7 +137,7 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: omo-postgres-pvc
+            claimName: postgres-pvc
 
 ---
 apiVersion: v1
@@ -205,10 +188,11 @@ spec:
           volumeMounts:
             - name: minio-storage
               mountPath: /data
-      volumes:
+              subPath: minio
+        volumes:
         - name: minio-storage
           persistentVolumeClaim:
-            claimName: omo-minio-pvc
+            claimName: minio-pvc
 
 ---
 apiVersion: v1
