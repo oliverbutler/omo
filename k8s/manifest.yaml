@@ -118,6 +118,10 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_INITDB_ARGS
+              value: '--nosync'
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
