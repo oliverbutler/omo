@@ -99,7 +99,7 @@ spec:
         app: omo-db
     spec:
       securityContext:
-        fsGroup: 999 # PostgreSQL typically uses UID/GID 999
+        fsGroup: 999
       containers:
         - name: omo-db
           image: postgres:16.4
