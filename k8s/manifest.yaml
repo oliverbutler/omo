@@ -14,7 +14,7 @@ data:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: minio-pvc
+  name: unraid-pvc
 spec:
   accessModes:
     - ReadWriteMany
@@ -22,27 +22,13 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  volumeName: omo-nfs-pv
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  storageClassName: nfs
-  resources:
-    requests:
-      storage: 50Gi
-  volumeName: omo-nfs-pv
+  volumeName: unraid-pv
 
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: omo-nfs-pv
+  name: unraid-pv
 spec:
   capacity:
     storage: 100Gi # Adjust this value based on your needs
@@ -137,7 +123,7 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: postgres-pvc
+            claimName: unraid-pvc
 
 ---
 apiVersion: v1
@@ -192,7 +178,7 @@ spec:
       volumes:
         - name: minio-storage
           persistentVolumeClaim:
-            claimName: minio-pvc
+            claimName: unraid-pvc
 
 ---
 apiVersion: v1
