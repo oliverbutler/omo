@@ -1,20 +1,35 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: omo-deployment
+  labels:
+    app: omo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      app: omo
   template:
     metadata:
       labels:
-        app: nginx
+        app: omo
     spec:
       containers:
-        - name: nginx
-          image: nginx:latest
+        - name: omo
+          image: git.oliverbutler.uk/olly/omo:latest
           ports:
-            - containerPort: 80
+            - containerPort: 6900
+      imagePullSecrets:
+        - name: gitea-registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omo-service
+spec:
+  selector:
+    app: omo
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 6900
