@@ -20,5 +20,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: git.oliverbutler.uk/olly/omo-backend:${{ github.sha }},git.oliverbutler.uk/olly/omo-backend:latest
+          tags: git.oliverbutler.uk/olly/omo:${{ github.sha }},git.oliverbutler.uk/olly/omo:latest
           platforms: linux/amd64
