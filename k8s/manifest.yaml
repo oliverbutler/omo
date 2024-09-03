@@ -53,19 +53,6 @@ spec:
         - name: gitea-registry-secret
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: omo-service
-spec:
-  selector:
-    app: omo
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 6900
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
