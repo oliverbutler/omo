@@ -119,15 +119,15 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: DB_PASSWORD
-            - name: PGDATA
-              value: /var/lib/postgresql/data/postgres
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
-      volumes:
-        - name: postgres-storage
-          persistentVolumeClaim:
-            claimName: unraid-pvc
+      #       - name: PGDATA
+      #         value: /var/lib/postgresql/data/postgres
+      #     volumeMounts:
+      #       - name: postgres-storage
+      #         mountPath: /var/lib/postgresql/data
+      # volumes:
+      #   - name: postgres-storage
+      #     persistentVolumeClaim:
+      #       claimName: unraid-pvc
 
 ---
 apiVersion: v1
