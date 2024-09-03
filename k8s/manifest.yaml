@@ -119,10 +119,11 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
-              subPath: postgres
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
