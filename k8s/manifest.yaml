@@ -1,3 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omo-config
+data:
+  ENV: production
+  APP_PORT: '6900'
+  DB_HOST: omo-db-service
+  DB_PORT: '5432'
+  DB_NAME: oliverbutler
+  MINIO_ENDPOINT: omo-minio-service:9000
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: omo-secrets
+type: Opaque
+stringData:
+  DB_USER: dbuser
+  DB_PASSWORD: password123
+  MINIO_ACCESS_KEY: root
+  MINIO_SECRET_KEY: secret123
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,8 +44,14 @@ spec:
           image: git.oliverbutler.uk/olly/omo:latest
           ports:
             - containerPort: 6900
+          envFrom:
+            - configMapRef:
+                name: omo-config
+            - secretRef:
+                name: omo-secrets
       imagePullSecrets:
         - name: gitea-registry-secret
+
 ---
 apiVersion: v1
 kind: Service
@@ -33,3 +64,102 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 6900
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omo-db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: omo-db
+  template:
+    metadata:
+      labels:
+        app: omo-db
+    spec:
+      containers:
+        - name: omo-db
+          image: postgres:16.4
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: oliverbutler
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: omo-secrets
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: omo-secrets
+                  key: DB_PASSWORD
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omo-db-service
+spec:
+  selector:
+    app: omo-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omo-minio-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: omo-minio
+  template:
+    metadata:
+      labels:
+        app: omo-minio
+    spec:
+      containers:
+        - name: omo-minio
+          image: minio/minio
+          args: ['server', '/data', '--console-address', ':9001']
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: omo-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: omo-secrets
+                  key: MINIO_SECRET_KEY
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omo-minio-service
+spec:
+  selector:
+    app: omo-minio
+  ports:
+    - name: api
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+    - name: console
+      protocol: TCP
+      port: 9001
+      targetPort: 9001
