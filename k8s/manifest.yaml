@@ -14,24 +14,24 @@ data:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: unraid-pvc
+  name: postgres-pv-claim
 spec:
   accessModes:
     - ReadWriteMany
   storageClassName: nfs
   resources:
     requests:
-      storage: 50Gi
-  volumeName: unraid-pv
+      storage: 20Gi
+  volumeName: postgres-pv
 
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: unraid-pv
+  name: postgres-pv
 spec:
   capacity:
-    storage: 100Gi # Adjust this value based on your needs
+    storage: 50Gi # Adjust this value based on your needs
   volumeMode: Filesystem
   accessModes:
     - ReadWriteMany
@@ -119,15 +119,13 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: DB_PASSWORD
-      #       - name: PGDATA
-      #         value: /var/lib/postgresql/data/postgres
-      #     volumeMounts:
-      #       - name: postgres-storage
-      #         mountPath: /var/lib/postgresql/data
-      # volumes:
-      #   - name: postgres-storage
-      #     persistentVolumeClaim:
-      #       claimName: unraid-pvc
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pv-claim
 
 ---
 apiVersion: v1
@@ -175,14 +173,15 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: MINIO_SECRET_KEY
-          volumeMounts:
-            - name: minio-storage
-              mountPath: /data
-              subPath: minio
-      volumes:
-        - name: minio-storage
-          persistentVolumeClaim:
-            claimName: unraid-pvc
+                  # TODO: Bring back when use minio
+      #     volumeMounts:
+      #       - name: minio-storage
+      #         mountPath: /data
+      #         subPath: minio
+      # volumes:
+      #   - name: minio-storage
+      #     persistentVolumeClaim:
+      #       claimName: unraid-pvc
 
 ---
 apiVersion: v1
