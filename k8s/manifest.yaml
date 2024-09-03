@@ -22,8 +22,7 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  volumeName: omo-nfs-pv
-  subPath: postgres
+  volumeName: omo-nfs-pv-postgres
 
 ---
 apiVersion: v1
@@ -37,14 +36,13 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  volumeName: omo-nfs-pv
-  subPath: minio
+  volumeName: omo-nfs-pv-minio
 
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: omo-nfs-pv
+  name: omo-nfs-pv-postgres
 spec:
   capacity:
     storage: 100Gi # Adjust this value based on your needs
@@ -55,7 +53,24 @@ spec:
   storageClassName: nfs
   nfs:
     server: 10.0.0.40
-    path: '/mnt/user/omo' # Adjust this path if necessary
+    path: '/mnt/user/omo/postgres'
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: omo-nfs-pv-minio
+spec:
+  capacity:
+    storage: 100Gi # Adjust this value based on your needs
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  nfs:
+    server: 10.0.0.40
+    path: '/mnt/user/omo/minio'
 
 ---
 apiVersion: v1
