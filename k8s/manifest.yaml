@@ -189,7 +189,7 @@ spec:
             - name: minio-storage
               mountPath: /data
               subPath: minio
-        volumes:
+      volumes:
         - name: minio-storage
           persistentVolumeClaim:
             claimName: minio-pvc
