@@ -138,11 +138,6 @@ spec:
           image: postgres:16.4
           ports:
             - containerPort: 5432
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
           env:
             - name: POSTGRES_DB
               value: oliverbutler
@@ -160,6 +155,11 @@ spec:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
               subPath: postgres
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', '$(POSTGRES_USER)']
+            initialDelaySeconds: 5
+            periodSeconds: 10
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
@@ -200,12 +200,6 @@ spec:
           ports:
             - containerPort: 9000
             - containerPort: 9001
-          readinessProbe:
-            httpGet:
-              path: /minio/health/ready
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 10
           env:
             - name: MINIO_ROOT_USER
               valueFrom:
@@ -221,6 +215,12 @@ spec:
             - name: minio-storage
               mountPath: /data
               p
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
       volumes:
         - name: minio-storage
           persistentVolumeClaim:
