@@ -101,10 +101,6 @@ spec:
       labels:
         app: omo
     spec:
-      initContainers:
-        - name: wait-for-dependencies
-          image: busybox
-          command: ['sh', '-c', 'until nc -z omo-db-service 5432 && nc -z omo-minio-service 9000; do echo waiting for dependencies; sleep 2; done;']
       containers:
         - name: omo
           image: git.oliverbutler.uk/olly/omo:latest
@@ -155,11 +151,6 @@ spec:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
               subPath: postgres
-          readinessProbe:
-            exec:
-              command: ['pg_isready', '-U', '$(POSTGRES_USER)']
-            initialDelaySeconds: 5
-            periodSeconds: 10
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
@@ -214,13 +205,6 @@ spec:
           volumeMounts:
             - name: minio-storage
               mountPath: /data
-              p
-          readinessProbe:
-            httpGet:
-              path: /minio/health/ready
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 10
       volumes:
         - name: minio-storage
           persistentVolumeClaim:
