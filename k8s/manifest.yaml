@@ -12,6 +12,53 @@ data:
 
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omo-postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: omo-nfs-pv
+  subPath: postgres
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omo-minio-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: omo-nfs-pv
+  subPath: minio
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: omo-nfs-pv
+spec:
+  capacity:
+    storage: 100Gi # Adjust this value based on your needs
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  nfs:
+    server: 10.0.0.40
+    path: '/mnt/user/omo' # Adjust this path if necessary
+
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: omo-secrets
@@ -85,6 +132,14 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: DB_PASSWORD
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: omo-postgres-pvc
 
 ---
 apiVersion: v1
@@ -132,6 +187,13 @@ spec:
                 secretKeyRef:
                   name: omo-secrets
                   key: MINIO_SECRET_KEY
+          volumeMounts:
+            - name: minio-storage
+              mountPath: /data
+      volumes:
+        - name: minio-storage
+          persistentVolumeClaim:
+            claimName: omo-minio-pvc
 
 ---
 apiVersion: v1
