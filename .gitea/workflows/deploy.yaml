@@ -5,6 +5,8 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      RUNNER_TOOL_CACHE: /toolcache
     steps:
       - name: Checkout code ⤵️
         uses: actions/checkout@v3
