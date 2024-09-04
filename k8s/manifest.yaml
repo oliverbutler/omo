@@ -82,26 +82,6 @@ spec:
                 name: omo-secrets
       imagePullSecrets:
         - name: gitea-registry-secret
----
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-metadata:
-  name: cluster-example
-spec:
-  instances: 1
-
-  storage:
-    size: 1Gi
-    pvcTemplate:
-      accessModes:
-        - ReadWriteOnce
-      resources:
-        requests:
-          storage: 1Gi
-      storageClassName: nfs
-      nfs:
-        server: 10.0.0.40
-        path: '/mnt/user/omo'
 
 ---
 apiVersion: apps/v1
