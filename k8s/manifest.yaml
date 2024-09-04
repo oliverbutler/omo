@@ -92,6 +92,16 @@ spec:
 
   storage:
     size: 1Gi
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: nfs
+      nfs:
+        server: 10.0.0.40
+        path: '/mnt/user/omo'
 
 ---
 apiVersion: apps/v1
