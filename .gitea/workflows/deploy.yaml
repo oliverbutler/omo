@@ -21,7 +21,7 @@ jobs:
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           SHA_SHORT=$(echo $GITEA_SHA | cut -c1-8)
-          echo "UNIQUE_TAG=${TIMESTAMP}-${SHA_SHORT}" >> $GITEA_OUTPUT
+          echo "UNIQUE_TAG=${TIMESTAMP}-${SHA_SHORT}" >> $GITHUB_ENV
 
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
