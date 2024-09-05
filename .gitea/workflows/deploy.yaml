@@ -17,10 +17,17 @@ jobs:
       - name: Login to Gitea Container Registry 🔐
         run: echo "${{ secrets.CONTAINER_REPO_TOKEN }}" | docker login git.oliverbutler.uk -u ${{ gitea.actor }} --password-stdin
 
+      - name: Generate unique tag
+        id: tag
+        run: |
+          echo "UNIQUE_TAG=$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: git.oliverbutler.uk/olly/omo:${{ github.sha }},git.oliverbutler.uk/olly/omo:latest
+          tags: |
+            git.oliverbutler.uk/olly/omo:${{ steps.tag.outputs.UNIQUE_TAG }}
+            git.oliverbutler.uk/olly/omo:latest
           platforms: linux/amd64
