@@ -1,5 +1,4 @@
 name: Build & Deploy 🚀
-run-name:
 on: [push]
 
 jobs:
@@ -20,7 +19,7 @@ jobs:
       - name: Generate unique tag
         id: tag
         run: |
-          echo "UNIQUE_TAG=$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "UNIQUE_TAG=$(date +%Y%m%d%H%M%S)-${gitea.sha::8}" >> $GITEA_OUTPUT
 
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
@@ -28,6 +27,6 @@ jobs:
           context: .
           push: true
           tags: |
-            git.oliverbutler.uk/olly/omo:${{ steps.tag.outputs.UNIQUE_TAG }}
-            git.oliverbutler.uk/olly/omo:latest
+            git.local.oliverbutler.uk/olly/omo:${{ steps.tag.outputs.UNIQUE_TAG }}
+            git.local.oliverbutler.uk/olly/omo:latest
           platforms: linux/amd64
