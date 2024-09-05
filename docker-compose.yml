@@ -8,7 +8,6 @@ services:
     ports:
       - '6900:6900'
     environment:
-      - APP_PORT=6900
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=oliverbutler
