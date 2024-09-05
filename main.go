@@ -2,12 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
-	"oliverbutler/templates"
 	"os"
 	"path/filepath"
 	"sync"
@@ -43,6 +41,15 @@ func initDB() error {
             count INT DEFAULT 0
         )
     `)
+
+	// Create a "notes" table to store notes
+	_, err = db.Exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          content TEXT NOT NULL
+      )
+  `)
 	if err != nil {
 		return err
 	}
@@ -130,7 +137,15 @@ func main() {
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		templates.Index().Render(r.Context(), w)
+		r.Header.Set("Content-Type", "text/html")
+		count, err := incrementVisits("/")
+		if err != nil {
+			slog.Error("Failed to increment visit count", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte(fmt.Sprintf("Hello, world! You are visitor number %d", count)))
 	})
 
 	r.Get("/maps", func(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +157,7 @@ func main() {
 		}
 
 		tripCacheMutex.RLock()
-		tripsJSON, err := json.Marshal(tripCache)
+		// tripsJSON, err := json.Marshal(tripCache)
 		tripCacheMutex.RUnlock()
 
 		if err != nil {
@@ -150,9 +165,7 @@ func main() {
 			return
 		}
 
-		title := fmt.Sprintf("%d visits", count)
-
-		templates.Map(title, string(tripsJSON)).Render(r.Context(), w)
+		w.Write([]byte(fmt.Sprintf(`maps page with %d visits`, count)))
 	})
 
 	port := os.Getenv("APP_PORT")

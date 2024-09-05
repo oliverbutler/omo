@@ -1,5 +1,11 @@
 package templates
 
+templ note() {
+	<div>
+		<p>Note</p>
+	</div>
+}
+
 templ Index() {
 	<html>
 		<head>
@@ -11,6 +17,9 @@ templ Index() {
 			<ul>
 				<li><a href="/maps">Maps</a></li>
 			</ul>
+			<div>
+				@note()
+			</div>
 		</body>
 	</html>
 }

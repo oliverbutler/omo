@@ -11,6 +11,5 @@ FROM alpine:3.14
 WORKDIR /app
 COPY --from=builder /app/main .
 COPY static ./static
-COPY templates ./templates
 EXPOSE 6900
 CMD ["./main"]
