@@ -16,17 +16,10 @@ jobs:
       - name: Login to Gitea Container Registry 🔐
         run: echo "${{ secrets.CONTAINER_REPO_TOKEN }}" | docker login git.local.oliverbutler.uk -u ${{ gitea.actor }} --password-stdin
 
-      - name: Generate unique tag
-        id: tag
-        run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          SHA_SHORT=$(echo ${{ gitea.sha }} | cut -c1-8)
-          echo "UNIQUE_TAG=${TIMESTAMP}-${SHA_SHORT}" >> $GITEA_OUTPUT
-
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: git.local.oliverbutler.uk/olly/omo:${{ env.UNIQUE_TAG }}
+          tags: git.local.oliverbutler.uk/olly/omo:$(date +%Y%m%d%H%M%S)-${{ gitea.sha_short }}
           platforms: linux/amd64
