@@ -19,10 +19,12 @@ jobs:
       - name: Generate image tag 🏷️
         id: generate_tag
         run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          ISO_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-          IMAGE_TAG="${TIMESTAMP}-${SHORT_SHA}"
-          echo "::set-output name=image_tag::${IMAGE_TAG}"
+          IMAGE_TAG="${ISO_TIMESTAMP}-${SHORT_SHA}"
+          # Replace colons and plus signs to comply with Docker tag rules
+          IMAGE_TAG_SANITIZED=$(echo "${IMAGE_TAG}" | tr -d ':' | tr '+' '-')
+          echo "::set-output name=image_tag::${IMAGE_TAG_SANITIZED}"
         env:
           GITHUB_SHA: ${{ github.sha }}
 
