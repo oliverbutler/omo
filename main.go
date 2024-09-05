@@ -150,7 +150,7 @@ func main() {
 			return
 		}
 
-		title := fmt.Sprintf("Maps (%d visits)", count)
+		title := fmt.Sprintf("%d visits", count)
 
 		templates.Map(title, string(tripsJSON)).Render(r.Context(), w)
 	})
