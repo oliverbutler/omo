@@ -14,12 +14,22 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Login to Gitea Container Registry 🔐
-        run: echo "${{ secrets.CONTAINER_REPO_TOKEN }}" | docker login git.local.oliverbutler.uk -u ${{ gitea.actor }} --password-stdin
+        run: echo "${{ secrets.CONTAINER_REPO_TOKEN }}" | docker login git.local.oliverbutler.uk -u ${{ github.actor }} --password-stdin
+
+      - name: Generate image tag 🏷️
+        id: generate_tag
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          IMAGE_TAG="${TIMESTAMP}-${SHORT_SHA}"
+          echo "::set-output name=image_tag::${IMAGE_TAG}"
+        env:
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: git.local.oliverbutler.uk/olly/omo:${{ github.sha }}
+          tags: git.local.oliverbutler.uk/olly/omo:${{ steps.generate_tag.outputs.image_tag }}
           platforms: linux/amd64
