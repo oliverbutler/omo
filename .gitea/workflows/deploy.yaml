@@ -19,7 +19,9 @@ jobs:
       - name: Generate unique tag
         id: tag
         run: |
-          echo "UNIQUE_TAG=$(date +%Y%m%d%H%M%S)-${gitea.sha::8}" >> $GITEA_OUTPUT
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHA_SHORT=$(echo $GITEA_SHA | cut -c1-8)
+          echo "UNIQUE_TAG=${TIMESTAMP}-${SHA_SHORT}" >> $GITEA_OUTPUT
 
       - name: Build and push Docker image 💨
         uses: docker/build-push-action@v4
