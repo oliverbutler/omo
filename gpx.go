@@ -2,8 +2,12 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
+	"io/ioutil"
+	"log/slog"
 	"math"
 	"os"
+	"path/filepath"
 )
 
 type GPX struct {
@@ -137,4 +141,110 @@ func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 			math.Sin(dLon/2)*math.Sin(dLon/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return R * c
+}
+
+func loadTripCache() error {
+	trips, err := readTripData()
+	if err != nil {
+		return err
+	}
+
+	tripCacheMutex.Lock()
+	tripCache = trips
+	tripCacheMutex.Unlock()
+
+	slog.Info("Trip cache loaded", "count", len(trips))
+	return nil
+}
+
+func readTripData() ([]Trip, error) {
+	tripsDir := "./static/gpx/"
+	tripFolders, err := ioutil.ReadDir(tripsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var trips []Trip
+
+	for _, folder := range tripFolders {
+		if folder.IsDir() {
+			tripPath := filepath.Join(tripsDir, folder.Name())
+			metaPath := filepath.Join(tripPath, "meta.yaml")
+
+			meta, err := parseMetaFile(metaPath)
+			if err != nil {
+				return nil, err
+			}
+
+			trip := Trip{
+				Name:   meta.Name,
+				Events: make([]TripEvent, len(meta.Events)),
+			}
+
+			slog.Info(fmt.Sprintf("Processing trip: %s", trip.Name))
+
+			for i, event := range meta.Events {
+				if event.Type == "camp" {
+					trip.Events[i] = CampEvent{
+						Type: event.Type,
+						Name: event.Name,
+						Lat:  event.Lat,
+						Lon:  event.Lon,
+						Alt:  event.Alt,
+					}
+
+					slog.Info(fmt.Sprintf("Processing camp: %s at %f, %f", event.Name, event.Lat, event.Lon))
+				} else if event.Type == "hike" {
+					hikePath := filepath.Join(tripPath, event.GPX)
+					processed, err := processGPXFile(hikePath)
+					if err != nil {
+						return nil, err
+					}
+
+					slog.Info(fmt.Sprintf("Processing hike: %s", event.GPX))
+
+					trip.Events[i] = HikeEvent{
+						Type:              event.Type,
+						TrackPoints:       processed.HighResolution,
+						TrackPointsLowRes: processed.LowResolution,
+					}
+				}
+			}
+
+			trips = append(trips, trip)
+		}
+	}
+
+	return trips, nil
+}
+
+type Trip struct {
+	Name   string      `json:"name"`
+	Events []TripEvent `json:"events"`
+}
+
+type TripEvent interface {
+	EventType() string
+}
+
+type CampEvent struct {
+	Type string  `json:"type"`
+	Name string  `json:"name"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
+	Alt  int     `json:"alt"`
+}
+
+func (c CampEvent) EventType() string {
+	return "camp"
+}
+
+type HikeEvent struct {
+	Type              string       `json:"type"`
+	TrackPoints       []TrackPoint `json:"trackPoints"`
+	TrackPointsLowRes []TrackPoint `json:"trackPointsLowRes"`
+}
+
+func (h HikeEvent) EventType() string {
+	return "hike"
 }
