@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"oliverbutler/components"
 	"os"
 	"sync"
 
@@ -74,8 +75,10 @@ func main() {
 	fileServer := http.FileServer(http.Dir("./static"))
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
+	InitDevReloadWebsocket(r)
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("You are visitor number")))
+		components.Page(components.DebugBody()).Render(w)
 	})
 
 	r.Get("/maps", func(w http.ResponseWriter, r *http.Request) {
