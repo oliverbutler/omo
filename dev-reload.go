@@ -3,6 +3,8 @@ package main
 import (
 	"math/rand"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
@@ -14,7 +16,10 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-var versionString string
+var (
+	versionString string
+	versionMutex  sync.RWMutex
+)
 
 func generateRandomString(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -25,8 +30,6 @@ func generateRandomString(n int) string {
 	return string(result)
 }
 
-// versionWsHandler is a WebSocket handler that sends a random string to the client.
-// This is used to force the client to reload when the server is restarted.
 func versionWsHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -35,9 +38,22 @@ func versionWsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	err = conn.WriteMessage(websocket.TextMessage, []byte(versionString))
+	versionMutex.RLock()
+	currentVersion := versionString
+	versionMutex.RUnlock()
+
+	err = conn.WriteMessage(websocket.TextMessage, []byte(currentVersion))
 	if err != nil {
 		// Handle error (e.g., log it)
+		return
+	}
+
+	// Keep the connection open
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -45,4 +61,14 @@ func InitDevReloadWebsocket(r *chi.Mux) {
 	versionString = generateRandomString(10)
 
 	r.Get("/ws", versionWsHandler)
+
+	// Start a goroutine to update the version string periodically
+	go func() {
+		for {
+			time.Sleep(5 * time.Second) // Wait for 5 seconds
+			versionMutex.Lock()
+			versionString = generateRandomString(10)
+			versionMutex.Unlock()
+		}
+	}()
 }

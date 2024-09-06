@@ -28,7 +28,7 @@ func PageFooter() g.Node {
 
 func DebugBody() g.Node {
 	return Body(
-		P(Class("text-red-500"), g.Text("DEBUG MODE 5")),
+		P(Class("text-red-500"), g.Text("DEBUG MODE 9")),
 	)
 }
 

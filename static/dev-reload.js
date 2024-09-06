@@ -1,34 +1,35 @@
-const WS_URL = 'ws://localhost:6900/ws';
-let socket;
-let currentVersion = null;
+(function () {
+  let socket;
+  let reconnectTimer;
+  const reconnectInterval = 1000; // 1 second
+  let currentVersion = localStorage.getItem("appVersion") || "";
 
-function connectWebSocket() {
-  socket = new WebSocket(WS_URL);
+  function connect() {
+    socket = new WebSocket("ws://" + window.location.host + "/ws");
 
-  socket.onopen = () => {
-    console.debug('WebSocket connection opened:');
-  };
+    socket.onopen = function () {
+      console.log("WebSocket connected for dev reload");
+      clearTimeout(reconnectTimer);
+    };
 
-  socket.onmessage = (event) => {
-    const newVersion = event.data;
+    socket.onclose = function () {
+      console.log("WebSocket closed. Reconnecting...");
+      reconnectTimer = setTimeout(connect, reconnectInterval);
+    };
 
-    if (!currentVersion) {
-      currentVersion = newVersion;
-    } else if (currentVersion !== newVersion) {
-      currentVersion = newVersion;
-      window.location.reload();
-    }
-  };
+    socket.onmessage = function (event) {
+      console.log("Received message from server:", event.data);
+      if (event.data !== currentVersion) {
+        currentVersion = event.data;
+        localStorage.setItem("appVersion", currentVersion);
+        window.location.reload();
+      }
+    };
 
-  socket.onclose = () => {
-    console.debug('WebSocket closed. Attempting to reconnect...');
-    setTimeout(connectWebSocket, 250);
-  };
+    socket.onerror = function (error) {
+      console.error("WebSocket error:", error);
+    };
+  }
 
-  socket.onerror = (event) => {
-    console.debug('WebSocket error:', event);
-  };
-}
-
-// Initially establish the WebSocket connection
-connectWebSocket();
+  connect();
+})();
