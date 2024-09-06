@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,11 +26,17 @@ var (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		slog.Error("Failed to load .env file", "error", err)
+	}
+
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
+	env := os.Getenv("ENV")
 
 	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -80,12 +87,18 @@ func main() {
 	InitDevReloadWebsocket(r)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		components.Page(components.DebugBody()).Render(w)
+		components.Page(components.HomePage()).Render(w)
 	})
 
 	r.Get("/maps", handleMaps)
 
-	addr := "0.0.0.0:6900"
+	host := "0.0.0.0"
+
+	if env == "local" {
+		host = "localhost"
+	}
+
+	addr := host + ":6900"
 
 	slog.Info(fmt.Sprintf("Starting server on %s", addr))
 	http.ListenAndServe(addr, r)

@@ -1,5 +1,5 @@
-local:
-	docker-compose -f docker-compose.yml up --build
+up:
+	docker-compose up -d
 
 down:
 	docker-compose down
@@ -17,7 +17,7 @@ export GOOSE_DBSTRING=postgresql://postgres:password@127.0.0.1/oliverbutler?sslm
 migration:
 	goose -s create $(NAME) sql
 
-up:
+migrate:
 	goose up
 
 .PHONY: migration

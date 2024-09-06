@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
 	"io/ioutil"
-	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -167,8 +165,6 @@ func readTripData() ([]Trip, error) {
 				Events: make([]TripEvent, len(meta.Events)),
 			}
 
-			slog.Info(fmt.Sprintf("Processing trip: %s", trip.Name))
-
 			for i, event := range meta.Events {
 				if event.Type == "camp" {
 					trip.Events[i] = CampEvent{
@@ -178,16 +174,12 @@ func readTripData() ([]Trip, error) {
 						Lon:  event.Lon,
 						Alt:  event.Alt,
 					}
-
-					slog.Info(fmt.Sprintf("Processing camp: %s at %f, %f", event.Name, event.Lat, event.Lon))
 				} else if event.Type == "hike" {
 					hikePath := filepath.Join(tripPath, event.GPX)
 					processed, err := processGPXFile(hikePath)
 					if err != nil {
 						return nil, err
 					}
-
-					slog.Info(fmt.Sprintf("Processing hike: %s", event.GPX))
 
 					trip.Events[i] = HikeEvent{
 						Type:              event.Type,

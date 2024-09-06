@@ -78,6 +78,7 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/maragudk/gomponents v0.20.4
 	github.com/pressly/goose/v3 v3.22.0
 	golang.org/x/net v0.28.0 // indirect

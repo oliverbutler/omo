@@ -1,23 +1,6 @@
 version: '3.8'
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - '6900:6900'
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=oliverbutler
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-    depends_on:
-      - db
-    volumes:
-      - .:/app
-
   db:
     image: postgres:16.4
     environment:

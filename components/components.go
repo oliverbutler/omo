@@ -15,20 +15,33 @@ const (
 )
 
 func PageFooter() g.Node {
-	return Footer(Class("prose prose-sm text-gray-500 mt-12"),
+	return Footer(Class("prose-sm text-gray-500 mt-12"),
 		P(
-			g.Textf("Copyright CrowdLog "+strconv.Itoa(
-				time.Now().Year())+" - All rights reserved."),
-		),
-		P(
-			g.Textf("Rendered %v. ", time.Now().Format(time.RFC3339)),
+			g.Textf("© Oliver Butler "+strconv.Itoa(
+				time.Now().Year())),
 		),
 	)
 }
 
-func DebugBody() g.Node {
-	return Body(
-		P(Class("text-red-500"), g.Text("DEBUG MODE 27")),
+func HomePage() g.Node {
+	return Header(
+		Class("flex flex-row justify-between"),
+		Div(Class("flex flex-col"),
+			H2(
+				Class("mb-2"),
+				g.Text("Oliver Butler 🏔️"),
+			),
+			NavBar(),
+		),
+		Img(Src("/static/olly.webp"), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),
+	)
+}
+
+func NavBar() g.Node {
+	return Nav(Class("flex items-center gap-2"),
+		A(Href("/"), g.Text("Home")),
+		A(Href("/blog"), Class("no-underline"), g.Text("Blog")),
+		A(Href("/hikes"), Class("no-underline"), g.Text("Hikes")),
 	)
 }
 
@@ -44,7 +57,7 @@ func Page(body g.Node) g.Node {
 		Lang("en"),
 		Head(
 			TitleEl(g.Text("CrowdLog")),
-			// Link(Rel("stylesheet"), Href("/assets/output.css")),
+			Link(Rel("stylesheet"), Href("/static/output.css")),
 			g.Group(scripts),
 		),
 		Body(Class("mx-auto px-4 prose prose-invert"),

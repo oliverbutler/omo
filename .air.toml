@@ -3,14 +3,14 @@ tmp_dir = "tmp"
 
 [build]
   bin = "./tmp/main"
-  cmd = "go build -o ./tmp/main ."
-  exclude_dir = ["static", "tmp"]
-  exclude_file = []
+  cmd = "./tailwindcss -i ./static/input.css -o ./static/output.css && go build -o ./tmp/main ."
+  exclude_dir = ["tmp"]
+  exclude_file = ["./static/input.css"]
   exclude_unchanged = false
   follow_symlink = false
   full_bin = ""
   include_dir = []
-  include_ext = ["go", "html", "ts", "js"]
+  include_ext = ["go", "html", "ts", "js", "css"]
   kill_delay = "0s"
   log = "build-errors.log"
   send_interrupt = false
@@ -22,10 +22,6 @@ tmp_dir = "tmp"
   main = "magenta"
   runner = "green"
   watcher = "cyan"
-
-[proxy]
-  enabled = true
-  app_port = 6900
 
 [log]
   time = false
