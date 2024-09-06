@@ -8,7 +8,8 @@ import (
 	"net/http"
 	"oliverbutler/components"
 	"os"
-	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,8 +20,8 @@ import (
 )
 
 var (
-	tripCache      []Trip
-	tripCacheMutex sync.RWMutex
+	tripCache      atomic.Value
+	tripCacheReady = make(chan struct{})
 )
 
 func main() {
@@ -62,12 +63,13 @@ func main() {
 		}
 	}
 
-	defer pool.Close()
-
-	// Load the cache on startup
-	if err := loadTripCache(); err != nil {
-		slog.Error("Failed to load trip cache", "error", err)
-	}
+	// Start loading the cache asynchronously
+	go func() {
+		if err := loadTripCache(); err != nil {
+			slog.Error("Failed to load trip cache", "error", err)
+		}
+		close(tripCacheReady)
+	}()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -81,16 +83,37 @@ func main() {
 		components.Page(components.DebugBody()).Render(w)
 	})
 
-	r.Get("/maps", func(w http.ResponseWriter, r *http.Request) {
-		tripCacheMutex.RLock()
-		// tripsJSON, err := json.Marshal(tripCache)
-		tripCacheMutex.RUnlock()
-
-		w.Write([]byte(fmt.Sprintf(`maps page with %d trips`, len(tripCache))))
-	})
+	r.Get("/maps", handleMaps)
 
 	addr := "0.0.0.0:6900"
 
 	slog.Info(fmt.Sprintf("Starting server on %s", addr))
 	http.ListenAndServe(addr, r)
+}
+
+func handleMaps(w http.ResponseWriter, r *http.Request) {
+	select {
+	case <-tripCacheReady:
+		// Cache is ready, proceed
+	case <-time.After(5 * time.Second):
+		// Timeout if cache takes too long to load
+		http.Error(w, "Cache is still loading, please try again later", http.StatusServiceUnavailable)
+		return
+	}
+
+	trips := tripCache.Load().([]Trip)
+	w.Write([]byte(fmt.Sprintf("maps page with %d trips", len(trips))))
+}
+
+func loadTripCache() error {
+	// Simulating cache loading
+	time.Sleep(2 * time.Second)
+
+	trips, err := readTripData()
+	if err != nil {
+		return err
+	}
+
+	tripCache.Store(trips)
+	return nil
 }

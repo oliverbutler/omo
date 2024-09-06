@@ -143,20 +143,6 @@ func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 	return R * c
 }
 
-func loadTripCache() error {
-	trips, err := readTripData()
-	if err != nil {
-		return err
-	}
-
-	tripCacheMutex.Lock()
-	tripCache = trips
-	tripCacheMutex.Unlock()
-
-	slog.Info("Trip cache loaded", "count", len(trips))
-	return nil
-}
-
 func readTripData() ([]Trip, error) {
 	tripsDir := "./static/gpx/"
 	tripFolders, err := ioutil.ReadDir(tripsDir)

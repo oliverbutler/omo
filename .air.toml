@@ -4,8 +4,7 @@ tmp_dir = "tmp"
 [build]
   bin = "./tmp/main"
   cmd = "go build -o ./tmp/main ."
-  delay = 1000
-  exclude_dir = ["assets", "tmp", "vendor"]
+  exclude_dir = ["static", "tmp"]
   exclude_file = []
   exclude_unchanged = false
   follow_symlink = false
@@ -23,6 +22,10 @@ tmp_dir = "tmp"
   main = "magenta"
   runner = "green"
   watcher = "cyan"
+
+[proxy]
+  enabled = true
+  app_port = 6900
 
 [log]
   time = false
