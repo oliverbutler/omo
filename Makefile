@@ -10,6 +10,9 @@ logs:
 clean:
 	docker-compose down -v --remove-orphans
 
+build:
+	docker build -t oliverbutler .
+
 export GOOSE_MIGRATION_DIR=migrations
 export GOOSE_DRIVER=postgres
 export GOOSE_DBSTRING=postgresql://postgres:password@127.0.0.1/oliverbutler?sslmode=disable

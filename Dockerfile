@@ -4,22 +4,24 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
-# Tailwind CSS stage
-FROM alpine:3.14 AS tailwind
-WORKDIR /app
-COPY static ./static
-RUN wget -O tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
-    && chmod +x tailwindcss
-RUN ./tailwindcss -i ./static/input.css -o ./static/output.css --minify
+
+RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.10/tailwindcss-linux-arm64 -O ./tailwindcsslinux
+
+RUN chmod +x ./tailwindcsslinux
+
+RUN ./tailwindcsslinux -i ./static/input.css -o ./static/output.css
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # Run stage
 FROM alpine:3.14
 WORKDIR /app
 COPY --from=builder /app/main .
-COPY --from=tailwind /app/static/output.css ./static/output.css
 COPY static ./static
+
+# Copy the output.css file
+COPY --from=builder /app/static/output.css ./static/output.css
 COPY migrations ./migrations
 EXPOSE 6900
 CMD ["./main"]
