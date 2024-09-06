@@ -56,7 +56,7 @@ func Page(body g.Node) g.Node {
 	return HTML(
 		Lang("en"),
 		Head(
-			TitleEl(g.Text("CrowdLog")),
+			TitleEl(g.Text("Oliver Butler")),
 			Link(Rel("stylesheet"), Href("/static/output.css")),
 			g.Group(scripts),
 		),
