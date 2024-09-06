@@ -11,7 +11,7 @@ clean:
 	docker-compose down -v --remove-orphans
 
 build:
-	docker build -t oliverbutler .
+	docker build . --platform=linux/amd64
 
 export GOOSE_MIGRATION_DIR=migrations
 export GOOSE_DRIVER=postgres

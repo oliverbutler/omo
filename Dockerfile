@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 
 
-RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.10/tailwindcss-linux-arm64 -O ./tailwindcsslinux
+RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.10/tailwindcss-linux-x64 -O ./tailwindcsslinux
 
 RUN chmod +x ./tailwindcsslinux
 
