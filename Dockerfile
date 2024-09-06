@@ -11,5 +11,6 @@ FROM alpine:3.14
 WORKDIR /app
 COPY --from=builder /app/main .
 COPY static ./static
+COPY migrations ./migrations
 EXPOSE 6900
 CMD ["./main"]
