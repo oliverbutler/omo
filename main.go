@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"oliverbutler/components"
 	"oliverbutler/gpx"
 	"oliverbutler/pages"
 	"os"
@@ -103,7 +102,7 @@ func main() {
 	InitDevReloadWebsocket(r)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		components.Page(components.HomePage()).Render(w)
+		pages.Index().Render(w)
 	})
 
 	r.Get("/hikes", handleHikesPage)
