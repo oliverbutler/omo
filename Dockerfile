@@ -10,7 +10,7 @@ RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.10/t
 
 RUN chmod +x ./tailwindcsslinux
 
-RUN ./tailwindcsslinux -i ./static/input.css -o ./static/output.css
+RUN ./tailwindcsslinux -i ./static/input.css -o ./static/output.css --minify
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
