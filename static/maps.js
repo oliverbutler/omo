@@ -70,13 +70,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return { index, visiblePoints };
     });
 
-    visibleTrips.sort((a, b) => b.visiblePoints - a.visiblePoints);
-    return visibleTrips[0].index;
+    const tripsWithVisiblePoints = visibleTrips.filter(
+      (trip) => trip.visiblePoints > 0,
+    );
+
+    if (tripsWithVisiblePoints.length === 1) {
+      return tripsWithVisiblePoints[0].index;
+    }
+
+    return null; // Return null if more than one trip is visible or no trips are visible
   }
 
   function updateCurrentTrip() {
     const newTripIndex = getMostProminentTrip();
-    if (newTripIndex !== currentTripIndex) {
+    if (newTripIndex !== null && newTripIndex !== currentTripIndex) {
       currentTripIndex = newTripIndex;
       currentTrip = trips[currentTripIndex];
       document.getElementById('trip-select').value = currentTripIndex;

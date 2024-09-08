@@ -23,14 +23,6 @@ func PageFooter() g.Node {
 	)
 }
 
-func HomePage() g.Node {
-	return Div(
-		NavBar(),
-		Div(Class("max-w-4xl mx-auto"),
-			P(g.Text("Home content"))),
-	)
-}
-
 func NavBar() g.Node {
 	return Header(
 		Class("flex flex-row justify-between max-w-4xl mx-auto"),
