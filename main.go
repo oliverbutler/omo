@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"oliverbutler/components"
+	"oliverbutler/gpx"
+	"oliverbutler/pages"
 	"os"
 	"sync/atomic"
 	"time"
@@ -81,8 +83,22 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
+	// Create a custom file server handler
 	fileServer := http.FileServer(http.Dir("./static"))
-	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
+
+	// Wrap the file server with a custom handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if env == "local" {
+			// Set no-cache headers for all static assets in local environment
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+		}
+		fileServer.ServeHTTP(w, r)
+	})
+
+	// Use the custom handler with Chi
+	r.Handle("/static/*", http.StripPrefix("/static/", handler))
 
 	InitDevReloadWebsocket(r)
 
@@ -90,7 +106,7 @@ func main() {
 		components.Page(components.HomePage()).Render(w)
 	})
 
-	r.Get("/maps", handleMaps)
+	r.Get("/hikes", handleHikesPage)
 
 	host := "0.0.0.0"
 
@@ -104,7 +120,7 @@ func main() {
 	http.ListenAndServe(addr, r)
 }
 
-func handleMaps(w http.ResponseWriter, r *http.Request) {
+func handleHikesPage(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-tripCacheReady:
 		// Cache is ready, proceed
@@ -114,15 +130,16 @@ func handleMaps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trips := tripCache.Load().([]Trip)
-	w.Write([]byte(fmt.Sprintf("maps page with %d trips", len(trips))))
+	trips := tripCache.Load().([]gpx.Trip)
+
+	pages.MapsPage(trips).Render(w)
 }
 
 func loadTripCache() error {
 	// Simulating cache loading
 	time.Sleep(2 * time.Second)
 
-	trips, err := readTripData()
+	trips, err := gpx.ReadTripData()
 	if err != nil {
 		return err
 	}

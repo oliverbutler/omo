@@ -1,4 +1,4 @@
-package main
+package meta
 
 import (
 	"os"
@@ -20,7 +20,7 @@ type MetaEvent struct {
 	Alt  int     `yaml:"alt"`
 }
 
-func parseMetaFile(file_path string) (*Meta, error) {
+func ParseMetaFile(file_path string) (*Meta, error) {
 	data, err := os.ReadFile(file_path)
 	if err != nil {
 		return nil, err

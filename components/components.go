@@ -24,45 +24,50 @@ func PageFooter() g.Node {
 }
 
 func HomePage() g.Node {
+	return Div(
+		NavBar(),
+		Div(Class("max-w-4xl mx-auto"),
+			P(g.Text("Home content"))),
+	)
+}
+
+func NavBar() g.Node {
 	return Header(
-		Class("flex flex-row justify-between"),
+		Class("flex flex-row justify-between max-w-4xl mx-auto"),
 		Div(Class("flex flex-col"),
 			H2(
 				Class("mb-2"),
 				g.Text("Oliver Butler 🏔️"),
 			),
-			NavBar(),
+			Nav(Class("max-w-4xl flex items-center gap-2"),
+				A(Href("/"), g.Text("Home")),
+				A(Href("/blog"), Class("no-underline"), g.Text("Blog")),
+				A(Href("/hikes"), Class("no-underline"), g.Text("Hikes")),
+			),
 		),
 		Img(Src("/static/olly.webp"), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),
 	)
 }
 
-func NavBar() g.Node {
-	return Nav(Class("flex items-center gap-2"),
-		A(Href("/"), g.Text("Home")),
-		A(Href("/blog"), Class("no-underline"), g.Text("Blog")),
-		A(Href("/hikes"), Class("no-underline"), g.Text("Hikes")),
-	)
-}
-
-func Page(body g.Node) g.Node {
-	var scripts []g.Node
-	scripts = append(scripts, Script(Src("https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js")))
-
-	if os.Getenv("ENV") != "production" {
-		scripts = append(scripts, Script(Src("/static/dev-reload.js")))
+func Page(body g.Node, extraHead ...g.Node) g.Node {
+	headContent := []g.Node{
+		TitleEl(g.Text("Oliver Butler")),
+		Link(Rel("stylesheet"), Href("/static/output.css")),
+		Script(Src("https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js")),
 	}
 
+	if os.Getenv("ENV") != "production" {
+		headContent = append(headContent, Script(Src("/static/dev-reload.js")))
+	}
+
+	headContent = append(headContent, extraHead...)
+
 	return HTML(
+		Class("prose prose-invert max-w-none"),
 		Lang("en"),
-		Head(
-			TitleEl(g.Text("Oliver Butler")),
-			Link(Rel("stylesheet"), Href("/static/output.css")),
-			g.Group(scripts),
-		),
-		Body(Class("mx-auto px-4 prose prose-invert"),
+		Head(g.Group(headContent)),
+		Body(
 			body,
-			PageFooter(),
 		),
 	)
 }

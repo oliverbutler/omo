@@ -1,9 +1,10 @@
-package main
+package gpx
 
 import (
 	"encoding/xml"
 	"io/ioutil"
 	"math"
+	"oliverbutler/meta"
 	"os"
 	"path/filepath"
 )
@@ -141,7 +142,7 @@ func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 	return R * c
 }
 
-func readTripData() ([]Trip, error) {
+func ReadTripData() ([]Trip, error) {
 	tripsDir := "./static/gpx/"
 	tripFolders, err := ioutil.ReadDir(tripsDir)
 	if err != nil {
@@ -155,7 +156,7 @@ func readTripData() ([]Trip, error) {
 			tripPath := filepath.Join(tripsDir, folder.Name())
 			metaPath := filepath.Join(tripPath, "meta.yaml")
 
-			meta, err := parseMetaFile(metaPath)
+			meta, err := meta.ParseMetaFile(metaPath)
 			if err != nil {
 				return nil, err
 			}
