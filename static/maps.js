@@ -455,14 +455,21 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (e.key === 'm') {
       document.getElementById('map-button').click();
     } else if (e.key === 'c') {
-      // copy current lat/lon under cursor to clipboard, in the yaml format
-      const lat = map.getCenter().lat;
-      const lon = map.getCenter().lng;
-      const ele = map.queryRenderedFeatures({ layers: ['hike-tracks-0'] })[0]
-        .properties.ele;
-      const yaml = `  lat: ${lat}\n  lon: ${lon}\n  ele: ${ele}`;
-      navigator.clipboard.writeText(yaml);
-    } else {
+      // Copy current lat/lon under cursor to clipboard, in the YAML format
+      const center = map.getCenter();
+      const lat = center.lat.toFixed(6);
+      const lon = center.lng.toFixed(6);
+      const ele = map.queryTerrainElevation(center, { exaggerated: false });
+      const yaml = `  lat: ${lat}\n  lon: ${lon}\n  ele: ${ele ? ele.toFixed(1) : 'N/A'}`;
+      navigator.clipboard
+        .writeText(yaml)
+        .then(() => {
+          alert('Location copied to clipboard!');
+        })
+        .catch((err) => {
+          console.error('Failed to copy location: ', err);
+          alert('Failed to copy location. See console for details.');
+        });
       return;
     }
     currentTrip = trips[currentTripIndex];
