@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('maps.js: trips', trips);
 
-  let currentTripIndex = 0;
+  let currentTripIndex = trips.length - 1;
   let currentTrip = trips[currentTripIndex];
   let map, elevationChart;
 
@@ -13,16 +13,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let markers = [];
 
   const trailColors = [
-    '#8B0000', // Dark red
-    '#B22222', // Firebrick
-    '#DC143C', // Crimson
     '#FF0000', // Red
     '#FF4500', // OrangeRed
-    '#FF6347', // Tomato
-    '#FFD700', // Gold
-    '#FFA500', // Orange
     '#FF8C00', // DarkOrange
-    '#DAA520', // GoldenRod
+    '#FFA500', // Orange
+    '#9400D3', // DarkViolet
+    '#FF1493', // DeepPink
+    '#00CED1', // DarkTurquoise
+    '#FF69B4', // HotPink
+    '#1E90FF', // DodgerBlue
+    '#32CD32', // LimeGreen
   ];
 
   mapboxgl.config.ENABLE_EVENT_LOGGING = false;
@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateCurrentTrip() {
     const newTripIndex = getMostProminentTrip();
     if (newTripIndex !== null && newTripIndex !== currentTripIndex) {
+      console.log('Auto-switching to trip', newTripIndex);
       currentTripIndex = newTripIndex;
       currentTrip = trips[currentTripIndex];
       document.getElementById('trip-select').value = currentTripIndex;
