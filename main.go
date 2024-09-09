@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"oliverbutler/blog"
 	"oliverbutler/gpx"
 	"oliverbutler/pages"
 	"os"
@@ -103,16 +102,12 @@ func main() {
 	InitDevReloadWebsocket(r)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		posts, err := blog.GetAllPosts()
-		if err != nil {
-			slog.Error("Failed to get posts", "error", err)
-			http.Error(w, "Failed to get posts", http.StatusInternalServerError)
-			return
-		}
+		pages.Index(context.TODO()).Render(w)
+	})
 
-		slog.Info("Got posts", "posts", posts)
-
-		pages.Index().Render(w)
+	r.Get("/post/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		slug := chi.URLParam(r, "slug")
+		pages.Post(context.TODO(), slug).Render(w)
 	})
 
 	r.Get("/hikes", handleHikesPage)

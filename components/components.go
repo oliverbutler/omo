@@ -23,7 +23,27 @@ func PageFooter() g.Node {
 	)
 }
 
-func NavBar() g.Node {
+type NavItem struct {
+	Text string
+	Href string
+}
+
+func NavBar(selectedPath string) g.Node {
+	navItems := []NavItem{
+		{Text: "Home", Href: "/"},
+		{Text: "Hikes", Href: "/hikes"},
+	}
+
+	navItemNodes := []g.Node{}
+
+	for _, item := range navItems {
+		if item.Href == selectedPath {
+			navItemNodes = append(navItemNodes, A(Class(""), g.Text(item.Text)))
+		} else {
+			navItemNodes = append(navItemNodes, A(Class("no-underline"), Href(item.Href), g.Text(item.Text)))
+		}
+	}
+
 	return Header(
 		Class("flex flex-row justify-between max-w-4xl mx-auto"),
 		Div(Class("flex flex-col"),
@@ -32,9 +52,7 @@ func NavBar() g.Node {
 				g.Text("Oliver Butler 🏔️"),
 			),
 			Nav(Class("max-w-4xl flex items-center gap-2"),
-				A(Href("/"), g.Text("Home")),
-				A(Href("/blog"), Class("no-underline"), g.Text("Blog")),
-				A(Href("/hikes"), Class("no-underline"), g.Text("Hikes")),
+				g.Group(navItemNodes),
 			),
 		),
 		Img(Src("/static/olly.webp"), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),

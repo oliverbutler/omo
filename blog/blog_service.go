@@ -1,45 +1,25 @@
 package blog
 
 import (
+	"context"
 	"fmt"
+	"oliverbutler/utils"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/gomarkdown/markdown"
 	"gopkg.in/yaml.v2"
 )
 
-type Post struct {
-	Title       string  `yaml:"title"`
-	Description string  `yaml:"description"`
-	PubDate     IsoDate `yaml:"pubDate"`
-	HeroImage   string  `yaml:"heroImage"`
-	Slug        string
-	Content     string
+type BlogService struct{}
+
+func NewBlogService() *BlogService {
+	return &BlogService{}
 }
 
-type IsoDate string
-
-func (d IsoDate) String() string {
-	return string(d)
-}
-
-func (d IsoDate) After(other IsoDate) bool {
-	return d > other
-}
-
-func (d IsoDate) FormattedString() string {
-	t, err := time.Parse("2006-01-02", string(d))
-	if err != nil {
-		return string(d) // Return original string if parsing fails
-	}
-	return t.Format("January 2, 2006")
-}
-
-func GetAllPosts() ([]Post, error) {
+func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
 	blogDir := "./static/blog"
 	posts := []Post{}
 
@@ -67,9 +47,18 @@ func GetAllPosts() ([]Post, error) {
 	return posts, nil
 }
 
-func GetPost(slug string) (Post, error) {
+func (s *BlogService) GetPost(ctx context.Context, slug string) (Post, error) {
 	postDir := filepath.Join("./static/blog", slug)
 	return readPost(postDir)
+}
+
+type Post struct {
+	Title       string        `yaml:"title"`
+	Description string        `yaml:"description"`
+	PubDate     utils.IsoDate `yaml:"pubDate"`
+	HeroImage   string        `yaml:"heroImage"`
+	Slug        string
+	Content     string
 }
 
 func readPost(postDir string) (Post, error) {
@@ -94,9 +83,7 @@ func readPost(postDir string) (Post, error) {
 	post.Content = string(markdown.ToHTML([]byte(parts[2]), nil, nil))
 
 	// Handle relative paths for heroImage
-	if strings.HasPrefix(post.HeroImage, "./") {
-		post.HeroImage = filepath.Join(filepath.Base(postDir), post.HeroImage[2:])
-	}
+	post.HeroImage = "/" + postDir + "/" + post.HeroImage[2:]
 
 	return post, nil
 }
