@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"oliverbutler/blog"
 	"oliverbutler/gpx"
 	"oliverbutler/pages"
 	"os"
@@ -102,6 +103,15 @@ func main() {
 	InitDevReloadWebsocket(r)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		posts, err := blog.GetAllPosts()
+		if err != nil {
+			slog.Error("Failed to get posts", "error", err)
+			http.Error(w, "Failed to get posts", http.StatusInternalServerError)
+			return
+		}
+
+		slog.Info("Got posts", "posts", posts)
+
 		pages.Index().Render(w)
 	})
 
