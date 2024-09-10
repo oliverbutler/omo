@@ -13,7 +13,7 @@ import (
 func Post(ctx context.Context, slug string) g.Node {
 	blogService := blog.NewBlogService()
 
-	posts, err := blogService.GetPost(ctx, slug)
+	post, err := blogService.GetPost(ctx, slug)
 	if err != nil {
 		return components.Page(Div(
 			components.NavBar("/post/"+slug),
@@ -25,11 +25,11 @@ func Post(ctx context.Context, slug string) g.Node {
 	return components.Page(Div(
 		components.NavBar("/post/"+slug),
 		Div(Class("max-w-4xl mx-auto"),
-			H1(Class("text-4xl font-bold"), g.Text(posts.Title)),
-			P(Class("text-gray-600"), g.Text(posts.PubDate.FormattedString())),
-			Img(Src(posts.HeroImage), Class("w-full rounded-md")),
+			H1(Class("text-4xl font-bold"), g.Text(post.Title)),
+			P(Class("text-gray-600"), g.Text(post.PubDate.FormattedString())),
+			Img(Src(post.HeroImage), Class("w-full rounded-md"), Style("view-transition-name: hero-image-"+post.Slug)),
 			Div(Class("mt-4"),
-				g.Raw(string(posts.Content)),
+				g.Raw(string(post.Content)),
 			),
 		),
 	), g.Raw(fmt.Sprintf("<style>%s</style>", blogService.GetChromaCSS())),

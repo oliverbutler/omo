@@ -6,6 +6,7 @@ import (
 	"time"
 
 	g "github.com/maragudk/gomponents"
+	hx "github.com/maragudk/gomponents-htmx"
 	. "github.com/maragudk/gomponents/html"
 )
 
@@ -64,6 +65,7 @@ func Page(body g.Node, extraHead ...g.Node) g.Node {
 		TitleEl(g.Text("Oliver Butler")),
 		Link(Rel("stylesheet"), Href("/static/output.css")),
 		Script(Src("https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js")),
+		Script(Src("/static/olly.js")),
 	}
 
 	if os.Getenv("ENV") != "production" {
@@ -77,6 +79,7 @@ func Page(body g.Node, extraHead ...g.Node) g.Node {
 		Lang("en"),
 		Head(g.Group(headContent)),
 		Body(
+			hx.Boost("swap"),
 			body,
 		),
 	)

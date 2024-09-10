@@ -1,8 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const trips = JSON.parse(document.getElementById('jsonData').textContent);
 
-  console.log('maps.js: trips', trips);
-
   let currentTripIndex = trips.length - 1;
   let currentTrip = trips[currentTripIndex];
   let map, elevationChart;
