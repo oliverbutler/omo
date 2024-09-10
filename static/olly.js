@@ -17,3 +17,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+
+import * as blurhash from 'https://cdn.jsdelivr.net/npm/blurhash@2.0.5/+esm';
+
+document.addEventListener('DOMContentLoaded', function () {
+  const images = document.querySelectorAll('img[blur-hash]');
+  images.forEach((img) => {
+    const canvas = document.createElement('canvas');
+    const blurHash = img.getAttribute('blur-hash');
+    const width = parseInt(img.getAttribute('data-width'), 10);
+    const height = parseInt(img.getAttribute('data-height'), 10);
+    const aspectRatio = width / height;
+
+    const canvasHeight = 4;
+    const canvasWidth = Math.floor(aspectRatio * canvasHeight);
+
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    // Decode and render BlurHash
+    const pixels = blurhash.decode(blurHash, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    imageData.data.set(pixels);
+    ctx.putImageData(imageData, 0, 0);
+
+    // Set canvas as background
+    img.style.backgroundImage = 'url(' + canvas.toDataURL() + ')';
+    img.style.backgroundSize = 'cover';
+    img.style.backgroundPosition = 'center';
+
+    // Remove BlurHash when image loads
+    img.onload = function () {
+      img.style.backgroundImage = 'none';
+    };
+  });
+});

@@ -4,17 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"oliverbutler/gpx"
 	"oliverbutler/pages"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pressly/goose/v3"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,6 +42,29 @@ func main() {
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	env := os.Getenv("ENV")
+
+	// MinIO configuration
+	minioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	minioAccessKey := os.Getenv("MINIO_ACCESS_KEY")
+	minioSecretKey := os.Getenv("MINIO_SECRET_KEY")
+	minioUseSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	// Initialize MinIO client
+	minioClient, err := minio.New(minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(minioAccessKey, minioSecretKey, ""),
+		Secure: minioUseSSL,
+	})
+	if err != nil {
+		slog.Error("Failed to create MinIO client", "error", err)
+		return
+	}
+
+	// Test MinIO connection by creating a file and appending timestamp
+	err = testMinioConnection(minioClient)
+	if err != nil {
+		slog.Error("Failed to test MinIO connection", "error", err)
+		return
+	}
 
 	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -110,6 +137,10 @@ func main() {
 		pages.Post(context.TODO(), slug).Render(w)
 	})
 
+	r.Get("/photos", func(w http.ResponseWriter, r *http.Request) {
+		pages.Photos(context.TODO()).Render(w)
+	})
+
 	r.Get("/hikes", handleHikesPage)
 
 	host := "0.0.0.0"
@@ -149,5 +180,49 @@ func loadTripCache() error {
 	}
 
 	tripCache.Store(trips)
+	return nil
+}
+
+func testMinioConnection(minioClient *minio.Client) error {
+	bucketName := "test-bucket"
+	objectName := "test.txt"
+	location := "us-east-1"
+
+	// Create bucket if it doesn't exist
+	err := minioClient.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: location})
+	if err != nil {
+		// Check to see if we already own this bucket
+		exists, errBucketExists := minioClient.BucketExists(context.Background(), bucketName)
+		if errBucketExists == nil && exists {
+			slog.Info("Bucket already exists", "bucket", bucketName)
+		} else {
+			return err
+		}
+	} else {
+		slog.Info("Bucket created successfully", "bucket", bucketName)
+	}
+
+	// Prepare content
+	timestamp := time.Now().Format(time.RFC3339)
+	content := fmt.Sprintf("Test file created at: %s\n", timestamp)
+
+	// Check if the file exists and read its content
+	obj, err := minioClient.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{})
+	if err == nil {
+		existingContent, err := io.ReadAll(obj)
+		if err == nil {
+			content = string(existingContent) + content
+		}
+	}
+
+	slog.Info("Latest content", "content", content)
+
+	// Upload the file
+	_, err = minioClient.PutObject(context.Background(), bucketName, objectName, strings.NewReader(content), int64(len(content)), minio.PutObjectOptions{ContentType: "text/plain"})
+	if err != nil {
+		return err
+	}
+
+	slog.Info("File uploaded successfully", "bucket", bucketName, "object", objectName)
 	return nil
 }

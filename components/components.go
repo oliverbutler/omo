@@ -32,6 +32,7 @@ type NavItem struct {
 func NavBar(selectedPath string) g.Node {
 	navItems := []NavItem{
 		{Text: "Home", Href: "/"},
+		{Text: "Photos", Href: "/photos"},
 		{Text: "Hikes", Href: "/hikes"},
 	}
 
@@ -65,7 +66,7 @@ func Page(body g.Node, extraHead ...g.Node) g.Node {
 		TitleEl(g.Text("Oliver Butler")),
 		Link(Rel("stylesheet"), Href("/static/output.css")),
 		Script(Src("https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js")),
-		Script(Src("/static/olly.js")),
+		Script(Type("module"), Src("/static/olly.js")),
 	}
 
 	if os.Getenv("ENV") != "production" {
