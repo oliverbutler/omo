@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"oliverbutler/utils"
@@ -9,7 +10,11 @@ import (
 	"sort"
 	"strings"
 
+	chromaHtml "github.com/alecthomas/chroma/formatters/html"
+	"github.com/alecthomas/chroma/lexers"
+	"github.com/alecthomas/chroma/styles"
 	"github.com/gomarkdown/markdown"
+	"golang.org/x/net/html"
 	"gopkg.in/yaml.v2"
 )
 
@@ -82,8 +87,104 @@ func readPost(postDir string) (Post, error) {
 	// Convert markdown to HTML
 	post.Content = string(markdown.ToHTML([]byte(parts[2]), nil, nil))
 
+	// Apply syntax highlighting to code blocks
+	post.Content, err = highlightCodeBlocks(post.Content)
+	if err != nil {
+		return Post{}, err
+	}
+
 	// Handle relative paths for heroImage
 	post.HeroImage = "/" + postDir + "/" + post.HeroImage[2:]
 
 	return post, nil
+}
+
+func highlightCodeBlocks(content string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(content))
+	if err != nil {
+		return "", err
+	}
+
+	var highlightNode func(*html.Node)
+	highlightNode = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "code" {
+			// Find the parent <pre> tag
+			if n.Parent != nil && n.Parent.Type == html.ElementNode && n.Parent.Data == "pre" {
+				// Get the language from the class attribute
+				var lang string
+				for _, attr := range n.Attr {
+					if attr.Key == "class" && strings.HasPrefix(attr.Val, "language-") {
+						lang = strings.TrimPrefix(attr.Val, "language-")
+						break
+					}
+				}
+
+				// If no language is specified, default to "go"
+				if lang == "" {
+					lang = "go"
+				}
+
+				// Get the code content
+				code := extractText(n)
+
+				// Highlight the code
+				highlightedCode, err := highlightCode(code, lang)
+				if err == nil {
+					// Replace the content of the <code> tag with the highlighted code
+					n.FirstChild = &html.Node{
+						Type: html.RawNode,
+						Data: highlightedCode,
+					}
+				}
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			highlightNode(c)
+		}
+	}
+
+	highlightNode(doc)
+
+	var buf bytes.Buffer
+	err = html.Render(&buf, doc)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func extractText(n *html.Node) string {
+	var text string
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode {
+			text += c.Data
+		}
+	}
+	return text
+}
+
+func highlightCode(code, lang string) (string, error) {
+	lexer := lexers.Get(lang)
+	if lexer == nil {
+		lexer = lexers.Fallback
+	}
+	style := styles.Get("monokai")
+	if style == nil {
+		style = styles.Fallback
+	}
+	formatter := chromaHtml.New(chromaHtml.Standalone(true))
+	iterator, err := lexer.Tokenise(nil, code)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = formatter.Format(&buf, style, iterator)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
