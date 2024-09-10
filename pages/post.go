@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"fmt"
 	"oliverbutler/blog"
 	"oliverbutler/components"
 
@@ -31,5 +32,6 @@ func Post(ctx context.Context, slug string) g.Node {
 				g.Raw(string(posts.Content)),
 			),
 		),
-	))
+	), g.Raw(fmt.Sprintf("<style>%s</style>", blogService.GetChromaCSS())),
+	)
 }

@@ -57,6 +57,10 @@ func (s *BlogService) GetPost(ctx context.Context, slug string) (Post, error) {
 	return readPost(postDir)
 }
 
+func (s *BlogService) GetChromaCSS() string {
+	return getChromaCSS()
+}
+
 type Post struct {
 	Title       string        `yaml:"title"`
 	Description string        `yaml:"description"`
@@ -165,16 +169,32 @@ func extractText(n *html.Node) string {
 	return text
 }
 
+var styleName = "dracula"
+
+func getChromaCSS() string {
+	var buf bytes.Buffer
+	formatter := chromaHtml.New(chromaHtml.WithClasses(true))
+	err := formatter.WriteCSS(&buf, styles.Get(styleName))
+	if err != nil {
+		return ""
+	}
+	return buf.String()
+}
+
 func highlightCode(code, lang string) (string, error) {
 	lexer := lexers.Get(lang)
 	if lexer == nil {
 		lexer = lexers.Fallback
 	}
-	style := styles.Get("monokai")
+	style := styles.Get(styleName)
 	if style == nil {
 		style = styles.Fallback
 	}
-	formatter := chromaHtml.New(chromaHtml.Standalone(true))
+	formatter := chromaHtml.New(
+		chromaHtml.WithClasses(true),
+		chromaHtml.TabWidth(4),
+		chromaHtml.LineNumbersInTable(true),
+	)
 	iterator, err := lexer.Tokenise(nil, code)
 	if err != nil {
 		return "", err
