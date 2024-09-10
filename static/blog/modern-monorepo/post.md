@@ -41,10 +41,11 @@ base is easier than ever, the easiest solution with no additional dependencies
 are [NPM Workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces), and
 the other two solutions we will cover are [NX](https://nx.dev/) and
 [TurboRepo](https://turborepo.org/). ## Workspaces - Keep It Simple Stupid
-Workspace is a generic term that refers to a set of features in the NPM cli which adds support for managing multiple packages from the root of the repository, NPM workspaces allow you to deduplicate node modules and run commands against multiple projects at the same time.
-
-Below is an example structure of a repository using NPM workspaces
-
+Workspace is a generic term that refers to a set of features in the NPM cli
+which adds support for managing multiple packages from the root of the
+repository, NPM workspaces allow you to deduplicate node modules and run
+commands against multiple projects at the same time. Below is an example
+structure of a repository using NPM workspaces
 ```bash
 ├── package.json
 └── packages
@@ -97,11 +98,7 @@ npx create-nx-workspace@latest
 
 The NX CLI will then ask you which template you would like to use to create this new application, for our case we will choose "Next.js".
 
-<Image
-src={import("../../images/architecting-a-modern-monorepo/nx-install.png")}
-alt="nx-install"
-loading="lazy"
-/>
+![nx-install](/static/blog/modern-monorepo/nx-install.png)
 
 ### Create a shared React library
 
@@ -113,23 +110,11 @@ nx g @nrwl/react:lib ui-shared
 
 Running this command generates a new `ui-shared` library, which can be used by multiple apps. The beauty of this pattern is that if you change `ui-shared`, it will rebuild other apps that use it, whereas, if you make a change in `next-app` NX won't rebuild `ui-shared`.
 
-<Image
-src={import(
-"../../images/architecting-a-modern-monorepo/nx-create-react-lib.png"
-)}
-alt="nx-create-react-lib"
-loading="lazy"
-/>
+![nx-create-react-lib](/static/blog/modern-monorepo/nx-create-react-lib.png)
 
 Here you can see the process of importing our new shared library, and using it in our Next.js app.
 
-<Image
-src={import(
-"../../images/architecting-a-modern-monorepo/nx-create-react-lib-use-component.png"
-)}
-alt="nx-create-react-lib-use-component"
-loading="lazy"
-/>
+![nx-create-react-lib-use-component](/static/blog/modern-monorepo/nx-create-react-lib-use-component.png)
 
 ### Affected Builds
 
@@ -140,35 +125,15 @@ To handle this, NX has the `affected` command. `nx affected --target=next-app` w
 
 To visualize these "affected libraries", use the `nx affected:graph` command, in this example below we've added a `second-shared` lib which is also used in `next-app`.
 
-<Image
-src={import("../../images/architecting-a-modern-monorepo/nx-affected-1.png")}
-alt="nx-affected-1"
-loading="lazy"
-/>
+![nx-affected-1](/static/blog/modern-monorepo/nx-affected-1.png)
 
-<Image
-src={import(
-"../../images/architecting-a-modern-monorepo/nx-affected-1-graph.png"
-)}
-alt="nx-affected-1-graph"
-loading="lazy"
-/>
+![nx-affected-1-graph](/static/blog/modern-monorepo/nx-affected-1-graph.png)
 
 Now we're going to make a change to `second-shared`, as this is used by `next-app`, and `next-app-e2e` you should expect that they should both be re-built.
 
-<Image
-src={import("../../images/architecting-a-modern-monorepo/nx-affected-2.png")}
-alt="nx-affected-2"
-loading="lazy"
-/>
+![nx-affected-2](/static/blog/modern-monorepo/nx-affected-2.png)
 
-<Image
-src={import(
-"../../images/architecting-a-modern-monorepo/nx-affected-2-graph.png"
-)}
-alt="nx-affected-2-graph"
-loading="lazy"
-/>
+![nx-affected-2-graph](/static/blog/modern-monorepo/nx-affected-2-graph.png)
 
 As epected you can see that the `next-app` and `next-app-e2e` projects are affected, but the `ui-shared` lib is not.
 
@@ -178,11 +143,7 @@ Once you've got an established NX Monorepo, you will likely have many applicatio
 
 This then works closely with NX Cloud. With NX Cloud you and your team mates share the same cache, allowing you all to benefit from improved performance.
 
-<Image
-src={import("../../images/architecting-a-modern-monorepo/nx-incremental.png")}
-alt="nx-incremental"
-loading="lazy"
-/>
+![nx-incremental](/static/blog/modern-monorepo/nx-incremental.png)
 
 The above chart is [from NX](https://nx.dev/ci/incremental-builds) and highlights the performance differences between normal builds, and incremental builds (both cold and warm).
 
