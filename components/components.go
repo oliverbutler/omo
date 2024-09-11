@@ -1,6 +1,7 @@
 package components
 
 import (
+	"oliverbutler/lib"
 	"os"
 	"strconv"
 	"time"
@@ -29,7 +30,7 @@ type NavItem struct {
 	Href string
 }
 
-func NavBar(selectedPath string) g.Node {
+func NavBar(selectedPath string, app *lib.App) g.Node {
 	navItems := []NavItem{
 		{Text: "Home", Href: "/"},
 		{Text: "Photos", Href: "/photos"},
@@ -45,6 +46,14 @@ func NavBar(selectedPath string) g.Node {
 			navItemNodes = append(navItemNodes, A(Class("no-underline"), Href(item.Href), g.Text(item.Text)))
 		}
 	}
+
+	navItemNodes = append(navItemNodes,
+
+		A(
+			Href(app.Users.GetOAuthAuthorizationUrl()),
+			g.Text("Login"),
+		),
+	)
 
 	return Header(
 		Class("flex flex-row justify-between max-w-4xl mx-auto"),

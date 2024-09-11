@@ -10,17 +10,19 @@ import (
 )
 
 type EnvironmentService struct {
-	baseURL        string
-	dbHost         string
-	dbPort         string
-	dbName         string
-	dbUser         string
-	dbPassword     string
-	minioEndpoint  string
-	minioAccessKey string
-	minioSecretKey string
-	minioUseSSL    bool
-	env            Environment
+	baseURL            string
+	dbHost             string
+	dbPort             string
+	dbName             string
+	dbUser             string
+	dbPassword         string
+	minioEndpoint      string
+	minioAccessKey     string
+	minioSecretKey     string
+	minioUseSSL        bool
+	githubClientId     string
+	githubClientSecret string
+	env                Environment
 }
 
 type Environment int
@@ -65,6 +67,9 @@ func (e *EnvironmentService) load() error {
 	e.minioAccessKey = e.getEnvOrDefault("MINIO_ACCESS_KEY", "")
 	e.minioSecretKey = e.getEnvOrDefault("MINIO_SECRET_KEY", "")
 	e.minioUseSSL = e.getEnvAsBool("MINIO_USE_SSL", false)
+
+	e.githubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
+	e.githubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
 
 	envString := e.getEnvOrDefault("ENV", "local")
 	if envString == "production" {
@@ -148,4 +153,12 @@ func (e *EnvironmentService) GetMinioUseSSL() bool {
 
 func (e *EnvironmentService) GetEnv() Environment {
 	return e.env
+}
+
+func (e *EnvironmentService) GetGithubClientId() string {
+	return e.githubClientId
+}
+
+func (e *EnvironmentService) GetGithubClientSecret() string {
+	return e.githubClientSecret
 }

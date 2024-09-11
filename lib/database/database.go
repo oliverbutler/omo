@@ -23,7 +23,6 @@ func NewDatabaseService(env *environment.EnvironmentService) (*DatabaseService, 
 	if err != nil {
 		slog.Error("Failed to connect to database", "error", err)
 	}
-	defer pool.Close()
 
 	db, err := sql.Open("postgres", dbUrl)
 	if err != nil {

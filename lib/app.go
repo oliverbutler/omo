@@ -38,7 +38,7 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	userService := users.NewUserService(db)
+	userService := users.NewUserService(db, env)
 
 	blogService := blog.NewBlogService()
 

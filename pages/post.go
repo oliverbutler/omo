@@ -14,14 +14,14 @@ func Post(ctx context.Context, app *lib.App, slug string) g.Node {
 	post, err := app.Blog.GetPost(ctx, slug)
 	if err != nil {
 		return components.Page(Div(
-			components.NavBar("/post/"+slug),
+			components.NavBar("/post/"+slug, app),
 			Div(Class("max-w-4xl mx-auto"),
 				P(g.Text("Error loading post"))),
 		))
 	}
 
 	return components.Page(Div(
-		components.NavBar("/post/"+slug),
+		components.NavBar("/post/"+slug, app),
 		Div(Class("max-w-4xl mx-auto"),
 			H1(Class("text-4xl font-bold"), g.Text(post.Title)),
 			P(Class("text-gray-600"), g.Text(post.PubDate.FormattedString())),

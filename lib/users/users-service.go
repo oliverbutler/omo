@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"oliverbutler/lib/database"
+	"oliverbutler/lib/environment"
 	"oliverbutler/lib/utils"
 	"strings"
 	"time"
@@ -14,13 +15,16 @@ import (
 )
 
 type UserService struct {
-	repo UserRepository
+	repo   UserRepository
+	github *GitHubService
+	env    *environment.EnvironmentService
 }
 
-func NewUserService(database *database.DatabaseService) *UserService {
+func NewUserService(database *database.DatabaseService, env *environment.EnvironmentService) *UserService {
 	repo := PgNewUserRepository(database.Pool)
+	github := NewGitHubService(env)
 
-	return &UserService{repo: repo}
+	return &UserService{repo: repo, github: github, env: env}
 }
 
 type User struct {
@@ -74,6 +78,40 @@ func (s *UserService) GetById(id string) (*User, error) {
 
 func (s *UserService) GetByEmail(email string) (*User, error) {
 	return s.repo.GetByEmail(email)
+}
+
+func (s *UserService) HandleGithubAuthCallback(code string) (*UserSessionResponse, error) {
+	slog.Info("Starting to call HandleGithubAuthCallback")
+
+	tokenResponse, err := s.github.ExchangeOAuthCodeForAccessToken(code)
+	if err != nil {
+		slog.Error("ExchangeOAuthCodeForAccessToken failed", "error", err)
+		return nil, err
+	}
+	slog.Info("ExchangeOAuthCodeForAccessToken successful")
+
+	gitHubUser, err := s.github.GetGitHubUser(tokenResponse.AccessToken)
+	if err != nil {
+		slog.Error("GetGitHubUser failed", "error", err)
+		return nil, err
+	}
+	slog.Info("GetGitHubUser successful")
+
+	user, err := s.UpsertUserFromGitHub(gitHubUser, tokenResponse.AccessToken)
+	if err != nil {
+		slog.Error("UpsertUserFromGitHub failed", "error", err)
+		return nil, err
+	}
+	slog.Info("UpsertUserFromGitHub successful")
+
+	userSession, err := s.CreateUserSession(user)
+	if err != nil {
+		slog.Error("CreateUserSession failed", "error", err)
+		return nil, err
+	}
+	slog.Info("CreateUserSession successful")
+
+	return userSession, nil
 }
 
 func (s *UserService) UpsertUserFromGitHub(gitHubUser GitHubUser, gitHubAccessToken string) (*User, error) {
@@ -273,4 +311,8 @@ func (s *UserService) ExtractUserFromCookies(w http.ResponseWriter, r *http.Requ
 	}
 
 	return user, nil
+}
+
+func (s *UserService) GetOAuthAuthorizationUrl() string {
+	return s.github.GetOAuthAuthorizationUrl()
 }

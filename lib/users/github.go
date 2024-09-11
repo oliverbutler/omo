@@ -3,8 +3,9 @@ package users
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"oliverbutler/lib/environment"
 	"oliverbutler/lib/utils"
-	"os"
 	"time"
 )
 
@@ -19,24 +20,26 @@ const (
 	RedirectPath = "/api/auth/github/callback"
 )
 
-// GetOAuthAuthorizationUrl returns the URL to let the user authorize the app to access their GitHub account.
-// If redirectToApp is true, the user will be redirected to the app, otherwise they will be redirected to the API.
-func GetOAuthAuthorizationUrl(redirectToApp bool) string {
-	redirectUri := utils.GetBaseUrl() + RedirectPath
-
-	if redirectToApp {
-		redirectUri += "/app"
-	} else {
-		redirectUri += "/api"
-	}
-
-	return "https://github.com/login/oauth/authorize?client_id=" + os.Getenv("GITHUB_CLIENT_ID") + "&redirect_uri=" + redirectUri + "&scope=user:email"
+type GitHubService struct {
+	env *environment.EnvironmentService
 }
 
-func ExchangeOAuthCodeForAccessToken(code string) (*TokenResponse, error) {
+func NewGitHubService(env *environment.EnvironmentService) *GitHubService {
+	return &GitHubService{env: env}
+}
+
+func (s *GitHubService) GetOAuthAuthorizationUrl() string {
+	redirectUri := utils.GetBaseUrl() + RedirectPath
+
+	return "https://github.com/login/oauth/authorize?client_id=" + s.env.GetGithubClientId() + "&redirect_uri=" + redirectUri + "&scope=user:email"
+}
+
+func (s *GitHubService) ExchangeOAuthCodeForAccessToken(code string) (*TokenResponse, error) {
+	slog.Info("Exchanging code for access token", "code", code)
+
 	data := map[string]string{
-		"client_id":     os.Getenv("GITHUB_CLIENT_ID"),
-		"client_secret": os.Getenv("GITHUB_CLIENT_SECRET"),
+		"client_id":     s.env.GetGithubClientId(),
+		"client_secret": s.env.GetGithubClientSecret(),
 		"code":          code,
 		"redirect_uri":  utils.GetBaseUrl() + RedirectPath,
 	}
@@ -57,13 +60,14 @@ func ExchangeOAuthCodeForAccessToken(code string) (*TokenResponse, error) {
 	}
 
 	if tokenResponse.Error != "" {
+		slog.Error("error from GitHub", "error", tokenResponse.Error)
 		return nil, fmt.Errorf("error from GitHub: %s", tokenResponse.Error)
 	}
 
 	return tokenResponse, nil
 }
 
-func GetGitHubUser(accessToken string) (GitHubUser, error) {
+func (s *GitHubService) GetGitHubUser(accessToken string) (GitHubUser, error) {
 	headers := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 	}

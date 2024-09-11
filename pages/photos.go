@@ -15,7 +15,7 @@ func Photos(ctx context.Context, app *lib.App) g.Node {
 	photos, err := app.Photos.GetPhotos(ctx)
 	if err != nil {
 		return components.Page(Div(
-			components.NavBar("/photos"),
+			components.NavBar("/photos", app),
 		))
 	}
 
@@ -35,7 +35,7 @@ func Photos(ctx context.Context, app *lib.App) g.Node {
 	}
 
 	return components.Page(Div(
-		components.NavBar("/photos"),
+		components.NavBar("/photos", app),
 		Div(Class("max-w-4xl mx-auto columns-1 md:columns-2 xl:columns-3 gap-4"),
 			g.Group(photoTiles),
 		),
