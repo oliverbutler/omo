@@ -38,7 +38,7 @@ func Photos(ctx context.Context) g.Node {
 
 	return components.Page(Div(
 		components.NavBar("/photos"),
-		Div(Class("max-w-4xl mx-auto columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4"),
+		Div(Class("max-w-4xl mx-auto columns-1 md:columns-2 xl:columns-3 gap-4"),
 			g.Group(photoTiles),
 		),
 	))
