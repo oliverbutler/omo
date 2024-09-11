@@ -49,12 +49,16 @@ func main() {
 	})
 
 	r.Get("/post/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
 		slug := chi.URLParam(r, "slug")
-		pages.Post(context.TODO(), app, slug).Render(w)
+		pages.Post(context.TODO(), app, user, slug).Render(w)
 	})
 
 	r.Get("/photos", func(w http.ResponseWriter, r *http.Request) {
-		pages.Photos(context.TODO(), app).Render(w)
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
+		pages.Photos(context.TODO(), app, user).Render(w)
 	})
 
 	r.Get("/hikes", func(w http.ResponseWriter, r *http.Request) {

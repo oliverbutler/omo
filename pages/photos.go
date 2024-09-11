@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"oliverbutler/components"
 	"oliverbutler/lib"
+	"oliverbutler/lib/users"
 
 	g "github.com/maragudk/gomponents"
 
@@ -11,11 +12,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-func Photos(ctx context.Context, app *lib.App) g.Node {
+func Photos(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 	photos, err := app.Photos.GetPhotos(ctx)
 	if err != nil {
 		return components.Page(Div(
-			components.NavBar("/photos", app),
+			components.NavBar("/photos", app, user),
 		))
 	}
 
@@ -35,7 +36,7 @@ func Photos(ctx context.Context, app *lib.App) g.Node {
 	}
 
 	return components.Page(Div(
-		components.NavBar("/photos", app),
+		components.NavBar("/photos", app, user),
 		Div(Class("max-w-4xl mx-auto columns-1 md:columns-2 xl:columns-3 gap-4"),
 			g.Group(photoTiles),
 		),

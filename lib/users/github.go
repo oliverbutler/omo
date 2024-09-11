@@ -90,7 +90,7 @@ type GitHubUser struct {
 	Login                   string    `json:"login"`
 	Id                      int       `json:"id"`
 	NodeId                  string    `json:"node_id"`
-	AvatarUrl               string    `json:"avatar_url"`
+	AvatarUrl               *string   `json:"avatar_url"`
 	GravatarId              string    `json:"gravatar_id"`
 	Url                     string    `json:"url"`
 	HtmlUrl                 string    `json:"html_url"`

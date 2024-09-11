@@ -27,6 +27,11 @@ func NewUserService(database *database.DatabaseService, env *environment.Environ
 	return &UserService{repo: repo, github: github, env: env}
 }
 
+type UserContext struct {
+	User       *User
+	IsLoggedIn bool
+}
+
 type User struct {
 	ID                string    `json:"id"`
 	GivenName         string    `json:"givenName"`
@@ -125,10 +130,11 @@ func (s *UserService) UpsertUserFromGitHub(gitHubUser GitHubUser, gitHubAccessTo
 			slog.Info("creating new user from github user", gitHubUser)
 
 			return s.repo.CreateGitHubUser(User{
-				ID:         cuid.New(),
-				GivenName:  givenName,
-				FamilyName: familyName,
-				Email:      gitHubUser.Email,
+				ID:                cuid.New(),
+				GivenName:         givenName,
+				FamilyName:        familyName,
+				Email:             gitHubUser.Email,
+				ProfilePictureUrl: gitHubUser.AvatarUrl,
 			}, gitHubUser.Id, gitHubAccessToken)
 		}
 
@@ -299,18 +305,18 @@ func (s *UserService) ExtractUserClaimsFromCookies(w http.ResponseWriter, r *htt
 	return claims, nil
 }
 
-func (s *UserService) ExtractUserFromCookies(w http.ResponseWriter, r *http.Request) (*User, error) {
+func (s *UserService) ExtractUserFromCookies(w http.ResponseWriter, r *http.Request) (*UserContext, error) {
 	claims, err := s.ExtractUserClaimsFromCookies(w, r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract user claims: %v", err)
+		return &UserContext{IsLoggedIn: false, User: nil}, fmt.Errorf("failed to extract user claims: %v", err)
 	}
 
 	user, err := s.repo.GetById(claims.UserId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user by id: %v", err)
+		return &UserContext{IsLoggedIn: false, User: nil}, fmt.Errorf("failed to get user by id: %v", err)
 	}
 
-	return user, nil
+	return &UserContext{IsLoggedIn: true, User: user}, nil
 }
 
 func (s *UserService) GetOAuthAuthorizationUrl() string {

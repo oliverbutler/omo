@@ -2,6 +2,7 @@ package components
 
 import (
 	"oliverbutler/lib"
+	"oliverbutler/lib/users"
 	"os"
 	"strconv"
 	"time"
@@ -30,7 +31,7 @@ type NavItem struct {
 	Href string
 }
 
-func NavBar(selectedPath string, app *lib.App) g.Node {
+func NavBar(selectedPath string, app *lib.App, user *users.UserContext) g.Node {
 	navItems := []NavItem{
 		{Text: "Home", Href: "/"},
 		{Text: "Photos", Href: "/photos"},
@@ -47,13 +48,11 @@ func NavBar(selectedPath string, app *lib.App) g.Node {
 		}
 	}
 
-	navItemNodes = append(navItemNodes,
+	imgSrc := "/static/olly.webp"
 
-		A(
-			Href(app.Users.GetOAuthAuthorizationUrl()),
-			g.Text("Login"),
-		),
-	)
+	if user.IsLoggedIn {
+		imgSrc = *user.User.ProfilePictureUrl
+	}
 
 	return Header(
 		Class("flex flex-row justify-between max-w-4xl mx-auto"),
@@ -66,13 +65,24 @@ func NavBar(selectedPath string, app *lib.App) g.Node {
 				g.Group(navItemNodes),
 			),
 		),
-		Img(Src("/static/olly.webp"), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),
+		Div(
+			Class("flex flex-col  gap-2 mb-4"),
+			Img(Src(imgSrc), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),
+			Div(
+				g.If(user.IsLoggedIn,
+					A(Href(""), Class(ButtonStyle), g.Text("Logout"))),
+				g.If(!user.IsLoggedIn,
+					A(Href(app.Users.GetOAuthAuthorizationUrl()), Class(ButtonStyle), g.Text("Login")),
+				),
+			),
+		),
 	)
 }
 
 func Page(body g.Node, extraHead ...g.Node) g.Node {
 	headContent := []g.Node{
 		TitleEl(g.Text("Oliver Butler")),
+		Meta(Name("viewport"), Content("width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0")),
 		Link(Rel("stylesheet"), Href("/static/output.css")),
 		Script(Src("https://unpkg.com/htmx.org@1.9.5/dist/htmx.min.js")),
 		Script(Type("module"), Src("/static/olly.js")),
@@ -85,7 +95,7 @@ func Page(body g.Node, extraHead ...g.Node) g.Node {
 	headContent = append(headContent, extraHead...)
 
 	return HTML(
-		Class("prose prose-invert max-w-none"),
+		Class("px-4 prose prose-invert max-w-none"),
 		Lang("en"),
 		Head(g.Group(headContent)),
 		Body(

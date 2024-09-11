@@ -10,11 +10,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-func Index(ctx context.Context, app *lib.App, user *users.User) g.Node {
+func Index(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 	posts, err := app.Blog.GetAllPosts(ctx)
 	if err != nil {
 		return components.Page(Div(
-			components.NavBar("/", app),
+			components.NavBar("/", app, user),
 			Div(Class("max-w-4xl mx-auto"),
 				P(g.Text("Error loading posts"))),
 		))
@@ -31,15 +31,9 @@ func Index(ctx context.Context, app *lib.App, user *users.User) g.Node {
 		))
 	}
 
-	if user != nil {
-		blogTiles = append(blogTiles, Div(Class("bg-neutral-950 p-4 rounded-md"),
-			P(g.Text("Welcome back, "+user.GivenName)),
-		))
-	}
-
 	return components.Page(Div(
-		components.NavBar("/", app),
-		Div(Class("max-w-4xl mx-auto grid grid-cols-4 gap-4"),
+		components.NavBar("/", app, user),
+		Div(Class("max-w-4xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-cols-1 gap-4"),
 			g.Group(blogTiles),
 		),
 	))
