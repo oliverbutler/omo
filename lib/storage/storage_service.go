@@ -24,6 +24,7 @@ type StorageRepo interface {
 	PutItem(ctx context.Context, bucket, folder string, name string, reader io.Reader, size int64, contentType string) (*FileItem, error)
 	GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error)
 	DeleteItem(ctx context.Context, bucket, folder, name string) error
+	DeleteFolder(ctx context.Context, bucket, folder string) error
 	ListItems(ctx context.Context, bucket, folder string) ([]*FileItem, error)
 	GetItemContent(ctx context.Context, item *FileItem) (io.ReadCloser, error)
 }
@@ -141,4 +142,23 @@ func (m *MinioStorageRepo) ListItems(ctx context.Context, bucket, folder string)
 func (m *MinioStorageRepo) GetItemContent(ctx context.Context, item *FileItem) (io.ReadCloser, error) {
 	objectName := filepath.Join(item.Folder, item.Name)
 	return m.client.GetObject(ctx, item.Bucket, objectName, minio.GetObjectOptions{})
+}
+
+func (m *MinioStorageRepo) DeleteFolder(ctx context.Context, bucket, folder string) error {
+	objectCh := m.client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
+		Prefix:    folder,
+		Recursive: true,
+	})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return object.Err
+		}
+
+		if err := m.client.RemoveObject(ctx, bucket, object.Key, minio.RemoveObjectOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -42,7 +42,7 @@ func NewApp() (*App, error) {
 
 	blogService := blog.NewBlogService()
 
-	photoService := photos.NewPhotoService()
+	photoService := photos.NewPhotoService(storageService, db)
 
 	mappingService := mapping.NewMappingService()
 

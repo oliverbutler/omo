@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	ButtonStyle = "tw p-2 px-3 bg-gray-800/90 hover:bg-gray-700 rounded-md transition-all"
-	InputStyle  = "tw border border-gray-800 px-2 rounded-md appearance-none focus:outline-none bg-transparent"
+	ButtonStyle = "p-2 px-3 bg-gray-900/70 hover:bg-gray-800 rounded-md transition-all"
 )
 
 func PageFooter() g.Node {
@@ -48,14 +47,8 @@ func NavBar(selectedPath string, app *lib.App, user *users.UserContext) g.Node {
 		}
 	}
 
-	imgSrc := "/static/olly.webp"
-
-	if user.IsLoggedIn {
-		imgSrc = *user.User.ProfilePictureUrl
-	}
-
 	return Header(
-		Class("flex flex-row justify-between max-w-4xl mx-auto"),
+		Class("flex flex-row justify-between max-w-4xl mx-auto mb-4"),
 		Div(Class("flex flex-col"),
 			H2(
 				Class("mb-2"),
@@ -66,14 +59,11 @@ func NavBar(selectedPath string, app *lib.App, user *users.UserContext) g.Node {
 			),
 		),
 		Div(
-			Class("flex flex-col  gap-2 mb-4"),
-			Img(Src(imgSrc), Alt("Oliver Butler"), Class("rounded-full w-24 h-24")),
-			Div(
-				g.If(user.IsLoggedIn,
-					A(Href(""), Class(ButtonStyle), g.Text("Logout"))),
-				g.If(!user.IsLoggedIn,
-					A(Href(app.Users.GetOAuthAuthorizationUrl()), Class(ButtonStyle), g.Text("Login")),
-				),
+			Class("mt-8"),
+			g.If(user.IsLoggedIn,
+				A(Href("/logout"), Class(ButtonStyle), g.Text("Logout"))),
+			g.If(!user.IsLoggedIn,
+				A(Href(app.Users.GetOAuthAuthorizationUrl()), Class(ButtonStyle), g.Text("Login")),
 			),
 		),
 	)

@@ -86,6 +86,7 @@ require (
 	github.com/alecthomas/chroma v0.10.0
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/bbrks/go-blurhash v1.1.1
+	github.com/buckket/go-blurhash v1.1.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gomarkdown/markdown v0.0.0-20240730141124-034f12af3bf6

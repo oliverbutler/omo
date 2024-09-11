@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"oliverbutler/lib"
@@ -61,6 +62,101 @@ func main() {
 		pages.Photos(context.TODO(), app, user).Render(w)
 	})
 
+	r.Get("/photos/manage", func(w http.ResponseWriter, r *http.Request) {
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
+		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+
+		pages.PhotosManage(context.TODO(), app, user).Render(w)
+	})
+
+	r.Post("/photos/upload", func(w http.ResponseWriter, r *http.Request) {
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
+		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
+			slog.Warn("Unauthorized user tried to upload photo")
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+
+		photo, err := app.Photos.UploadPhoto(context.TODO(), r)
+		if err != nil {
+			slog.Error("Failed to upload photo", "error", err)
+			http.Redirect(w, r, "/photos/manage", http.StatusFound)
+			return
+		}
+
+		slog.Info("Photo uploaded")
+
+		pages.PhotoManageTile(photo).Render(w)
+	})
+
+	r.Get("/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+
+		// Parse the quality query parameter
+		quality := r.URL.Query().Get("quality")
+		if quality == "" {
+			quality = "original"
+		}
+
+		// Validate quality value
+		validQualities := map[string]bool{
+			"original": true,
+			"large":    true,
+			"medium":   true,
+			"small":    true,
+		}
+		if !validQualities[quality] {
+			quality = "original"
+		}
+
+		// Retrieve the photo based on quality
+		photo, err := app.Photos.GetPhoto(r.Context(), id, quality)
+		if err != nil {
+			slog.Error("Failed to get photo", "error", err)
+			pages.Error(r.Context(), err).Render(w)
+			return
+		}
+		defer photo.Close() // Ensure the ReadCloser is closed
+
+		// Set appropriate headers before sending the photo.
+		// You may need to set Content-Type and Content-Disposition headers here.
+		w.Header().Set("Content-Type", "image/jpeg")                            // Adjust based on photo type
+		w.Header().Set("Content-Disposition", "inline; filename=\"photo.jpg\"") // Optional; set filename appropriately
+
+		// Copy the photo data to the response writer
+		if _, err := io.Copy(w, photo); err != nil {
+			slog.Error("Failed to write photo to response", "error", err)
+			pages.Error(r.Context(), err).Render(w)
+			return
+		}
+	})
+
+	r.Delete("/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
+		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
+			slog.Warn("Unauthorized user tried to delete photo")
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+
+		id := chi.URLParam(r, "id")
+
+		err := app.Photos.DeletePhoto(context.TODO(), id)
+		if err != nil {
+			slog.Error("Failed to delete photo", "error", err)
+			http.Redirect(w, r, "/photos/manage", http.StatusFound)
+			return
+		}
+
+		slog.Info("Photo deleted")
+	})
+
 	r.Get("/hikes", func(w http.ResponseWriter, r *http.Request) {
 		pages.MapsPage(context.TODO(), app).Render(w)
 	})
@@ -106,6 +202,42 @@ func main() {
 		})
 
 		// Redirect
+		http.Redirect(w, r, "/", http.StatusFound)
+	})
+
+	r.Get("/logout", func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("User logging out")
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "AccessToken",
+			Value:    "",
+			MaxAge:   0,
+			Path:     "/",
+			Domain:   app.Environment.GetDomain(),
+			Secure:   true,
+			HttpOnly: true,
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "RefreshToken",
+			Value:    "",
+			MaxAge:   0,
+			Path:     "/",
+			Domain:   app.Environment.GetDomain(),
+			Secure:   true,
+			HttpOnly: true,
+		})
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "UserSessionId",
+			Value:    "",
+			MaxAge:   0,
+			Path:     "/",
+			Domain:   app.Environment.GetDomain(),
+			Secure:   true,
+			HttpOnly: true,
+		})
+
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 

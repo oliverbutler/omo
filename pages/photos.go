@@ -24,7 +24,7 @@ func Photos(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 
 	for _, photo := range photos {
 		photoTiles = append(photoTiles, Div(Class("mb-4 break-inside-avoid"),
-			Img(Src(photo.LargePath),
+			Img(Src("/photos/"+photo.ID+"?quality=medium"),
 				g.Attr("blur-hash", photo.BlurHash),
 				g.Attr("data-width", fmt.Sprint(photo.Width)),
 				g.Attr("data-height", fmt.Sprint(photo.Height)),

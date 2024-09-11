@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
 import * as blurhash from 'https://cdn.jsdelivr.net/npm/blurhash@2.0.5/+esm';
 
 document.addEventListener('DOMContentLoaded', function () {
-  const images = document.querySelectorAll('img[blur-hash]');
+  const images = document.querySelectorAll('*[blur-hash]');
   images.forEach((img) => {
     const canvas = document.createElement('canvas');
     const blurHash = img.getAttribute('blur-hash');
