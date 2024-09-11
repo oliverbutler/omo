@@ -1,16 +1,19 @@
 package pages
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"oliverbutler/components"
-	"oliverbutler/gpx"
+	"oliverbutler/lib"
 
 	g "github.com/maragudk/gomponents"
 	. "github.com/maragudk/gomponents/html"
 )
 
-func MapsPage(trips []gpx.Trip) g.Node {
+func MapsPage(ctx context.Context, app *lib.App) g.Node {
+	trips, err := app.Mapping.GetTrips()
+
 	jsonData, err := json.Marshal(trips)
 	if err != nil {
 		// Handle error (e.g., log it or return an error node)

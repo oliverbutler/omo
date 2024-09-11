@@ -87,10 +87,12 @@ require (
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/bbrks/go-blurhash v1.1.1
 	github.com/disintegration/imaging v1.6.2
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gomarkdown/markdown v0.0.0-20240730141124-034f12af3bf6
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lucsky/cuid v1.2.1
 	github.com/maragudk/gomponents v0.20.4
 	github.com/maragudk/gomponents-htmx v0.5.0
 	github.com/minio/minio-go/v7 v7.0.76

@@ -3,7 +3,7 @@ package pages
 import (
 	"fmt"
 	"oliverbutler/components"
-	"oliverbutler/photos"
+	"oliverbutler/lib"
 
 	g "github.com/maragudk/gomponents"
 
@@ -11,10 +11,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func Photos(ctx context.Context) g.Node {
-	photoService := photos.NewPhotoService()
-
-	photos, err := photoService.GetPhotos(ctx)
+func Photos(ctx context.Context, app *lib.App) g.Node {
+	photos, err := app.Photos.GetPhotos(ctx)
 	if err != nil {
 		return components.Page(Div(
 			components.NavBar("/photos"),

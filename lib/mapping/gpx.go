@@ -1,4 +1,4 @@
-package gpx
+package mapping
 
 import (
 	"encoding/xml"

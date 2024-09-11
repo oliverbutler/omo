@@ -1,18 +1,16 @@
 package pages
 
 import (
-	"oliverbutler/blog"
 	"oliverbutler/components"
+	"oliverbutler/lib"
 
 	g "github.com/maragudk/gomponents"
 	. "github.com/maragudk/gomponents/html"
 	"golang.org/x/net/context"
 )
 
-func Index(ctx context.Context) g.Node {
-	blogService := blog.NewBlogService()
-
-	posts, err := blogService.GetAllPosts(ctx)
+func Index(ctx context.Context, app *lib.App) g.Node {
+	posts, err := app.Blog.GetAllPosts(ctx)
 	if err != nil {
 		return components.Page(Div(
 			components.NavBar("/"),

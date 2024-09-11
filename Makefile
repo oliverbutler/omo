@@ -20,6 +20,9 @@ export GOOSE_DBSTRING=postgresql://postgres:password@127.0.0.1/oliverbutler?sslm
 migration:
 	goose -s create $(NAME) sql
 
+migratedown:
+	goose down
+
 migrate:
 	goose up
 

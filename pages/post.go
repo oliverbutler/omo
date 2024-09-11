@@ -2,18 +2,16 @@ package pages
 
 import (
 	"fmt"
-	"oliverbutler/blog"
 	"oliverbutler/components"
+	"oliverbutler/lib"
 
 	g "github.com/maragudk/gomponents"
 	. "github.com/maragudk/gomponents/html"
 	"golang.org/x/net/context"
 )
 
-func Post(ctx context.Context, slug string) g.Node {
-	blogService := blog.NewBlogService()
-
-	post, err := blogService.GetPost(ctx, slug)
+func Post(ctx context.Context, app *lib.App, slug string) g.Node {
+	post, err := app.Blog.GetPost(ctx, slug)
 	if err != nil {
 		return components.Page(Div(
 			components.NavBar("/post/"+slug),
@@ -32,6 +30,6 @@ func Post(ctx context.Context, slug string) g.Node {
 				g.Raw(string(post.Content)),
 			),
 		),
-	), g.Raw(fmt.Sprintf("<style>%s</style>", blogService.GetChromaCSS())),
+	), g.Raw(fmt.Sprintf("<style>%s</style>", app.Blog.GetChromaCSS())),
 	)
 }
