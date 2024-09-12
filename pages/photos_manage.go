@@ -16,7 +16,7 @@ import (
 func PhotoManageTile(photo *photos.Photo) g.Node {
 	return Div(ID("image"+photo.ID), Class("bg-gray-900 p-4 flex flex-col  rounded-md"),
 		Div(Class("flex flex-row gap-2"),
-			Img(Src("/photos/"+photo.ID+"?quality=medium"),
+			Img(Src("/api/photos/"+photo.ID+"?quality=medium"),
 				Class("rounded-md m-0 h-52 w-fit"),
 				Alt(photo.Name),
 				Loading("lazy")),

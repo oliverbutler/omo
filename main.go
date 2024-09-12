@@ -94,7 +94,7 @@ func main() {
 		pages.PhotoManageTile(photo).Render(w)
 	})
 
-	r.Get("/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 
 		// Parse the quality query parameter
