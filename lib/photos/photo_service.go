@@ -68,6 +68,25 @@ func (s *PhotoService) UploadPhotos(ctx context.Context, r *http.Request) ([]*Ph
 	return photos, nil
 }
 
+func (s *PhotoService) generateBlurHash(ctx context.Context, src image.Image) (*string, error) {
+	tinyImageForBlurHash, err := s.generateResizedImage(src, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
+	}
+
+	originalImage, _, err := image.Decode(bytes.NewReader(tinyImageForBlurHash.Bytes()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode original image: %w", err)
+	}
+
+	hash, err := blurhash.Encode(4, 3, originalImage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
+	}
+
+	return &hash, nil
+}
+
 func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.FileHeader) (*Photo, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
@@ -91,26 +110,31 @@ func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.F
 		return nil, fmt.Errorf("failed to store original file: %w", err)
 	}
 
+	src, err := imaging.Decode(bytes.NewReader(fileBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode original image: %w", err)
+	}
+
 	// Generate previews and save them to MinIO
-	if err := s.generateAndStorePreviews(ctx, fileBytes, id); err != nil {
+	if err := s.generateAndStorePreviews(ctx, src, id); err != nil {
 		return nil, fmt.Errorf("failed to generate and store previews: %w", err)
 	}
 
 	// Generate BlurHash
+	hash, err := s.generateBlurHash(ctx, src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
+	}
+
 	originalImage, _, err := image.Decode(bytes.NewReader(fileBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode original image: %w", err)
 	}
 
-	hash, err := blurhash.Encode(4, 3, originalImage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
-	}
-
 	photo := Photo{
 		ID:        id,
 		Name:      fileHeader.Filename,
-		BlurHash:  hash,
+		BlurHash:  *hash,
 		Width:     originalImage.Bounds().Dx(),
 		Height:    originalImage.Bounds().Dy(),
 		CreatedAt: time.Now(),
@@ -184,12 +208,20 @@ func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *PhotoService) generateAndStorePreviews(ctx context.Context, fileBytes []byte, id string) error {
-	src, err := imaging.Decode(bytes.NewReader(fileBytes))
-	if err != nil {
-		return fmt.Errorf("failed to decode original image: %w", err)
+func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.Buffer, error) {
+	// Resize image
+	resized := imaging.Resize(src, width, 0, imaging.Lanczos)
+
+	// Encode image
+	var buf bytes.Buffer
+	if err := imaging.Encode(&buf, resized, imaging.JPEG); err != nil {
+		return nil, fmt.Errorf("failed to encode resized image: %w", err)
 	}
 
+	return &buf, nil
+}
+
+func (s *PhotoService) generateAndStorePreviews(ctx context.Context, src image.Image, id string) error {
 	type Preview struct {
 		resizedImage *image.NRGBA
 		name         string
@@ -213,19 +245,16 @@ func (s *PhotoService) generateAndStorePreviews(ctx context.Context, fileBytes [
 			defer wg.Done()
 
 			slog.Info("Generating preview", "name", preview.name)
-			// Resize image
-			resized := imaging.Resize(src, preview.width, 0, imaging.Lanczos)
 
-			// Encode image to buffer
-			var buf bytes.Buffer
-			if err := imaging.Encode(&buf, resized, preview.format); err != nil {
-				errCh <- fmt.Errorf("failed to encode %s preview: %w", preview.name, err)
+			buf, err := s.generateResizedImage(src, preview.width)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to generate %s preview: %w", preview.name, err)
 				return
 			}
 
 			// Store preview in storage
 			slog.Info("Storing preview", "name", preview.name)
-			if _, err := s.storage.StorageRepo.PutItem(ctx, "photos", id, preview.name, &buf, int64(buf.Len()), preview.mimeType); err != nil {
+			if _, err := s.storage.StorageRepo.PutItem(ctx, "photos", id, preview.name, buf, int64(buf.Len()), preview.mimeType); err != nil {
 				errCh <- fmt.Errorf("failed to store %s preview: %w", preview.name, err)
 				return
 			}
