@@ -41,7 +41,7 @@ func NavBar(selectedPath string, app *lib.App, user *users.UserContext) g.Node {
 
 	for _, item := range navItems {
 		if item.Href == selectedPath {
-			navItemNodes = append(navItemNodes, A(Class(""), g.Text(item.Text)))
+			navItemNodes = append(navItemNodes, A(Class(""), Href(item.Href), g.Text(item.Text)))
 		} else {
 			navItemNodes = append(navItemNodes, A(Class("no-underline"), Href(item.Href), g.Text(item.Text)))
 		}
@@ -59,9 +59,11 @@ func NavBar(selectedPath string, app *lib.App, user *users.UserContext) g.Node {
 			),
 		),
 		Div(
-			Class("mt-8"),
+			Class("mt-8 flex flex-col gap-2"),
 			g.If(user.IsLoggedIn,
 				A(Href("/logout"), Class(ButtonStyle), g.Text("Logout"))),
+			g.If(user.IsLoggedIn,
+				A(Href("/photos/manage"), Class(ButtonStyle), g.Text("Photos Manage"))),
 			g.If(!user.IsLoggedIn,
 				A(Href(app.Users.GetOAuthAuthorizationUrl()), Class(ButtonStyle), g.Text("Login")),
 			),

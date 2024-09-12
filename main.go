@@ -78,14 +78,12 @@ func main() {
 
 		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
 			slog.Warn("Unauthorized user tried to upload photo")
-			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
 		photo, err := app.Photos.UploadPhoto(context.TODO(), r)
 		if err != nil {
 			slog.Error("Failed to upload photo", "error", err)
-			http.Redirect(w, r, "/photos/manage", http.StatusFound)
 			return
 		}
 

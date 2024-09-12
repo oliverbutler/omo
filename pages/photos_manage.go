@@ -36,7 +36,7 @@ func PhotoManageTile(photo *photos.Photo) g.Node {
 			),
 			Div(Class("flex flex-col gap-2"),
 				Button(Class("bg-red-800 text-white p-2 rounded-md"), g.Text("Delete"), hx.Delete("/photos/"+photo.ID), hx.Trigger("click"), hx.Confirm("Are you sure you want to delete this photo?"),
-					hx.Target("closest #image"+photo.ID)),
+					hx.Target("closest #image"+photo.ID), hx.Swap("outerHTML")),
 			),
 		))
 }
@@ -45,7 +45,7 @@ func PhotosManage(ctx context.Context, app *lib.App, user *users.UserContext) g.
 	photos, err := app.Photos.GetPhotos(ctx)
 	if err != nil {
 		return components.Page(Div(
-			components.NavBar("/photos", app, user),
+			components.NavBar("/photos/manage", app, user),
 		))
 	}
 
@@ -58,7 +58,7 @@ func PhotosManage(ctx context.Context, app *lib.App, user *users.UserContext) g.
 	return components.Page(Div(
 		Class("max-w-4xl mx-auto"),
 		components.NavBar("/photos", app, user),
-		Form(ID("image-upload-form"), hx.Post("/photos/upload"), hx.Trigger("submit"), hx.Encoding("multipart/form-data"), hx.Target("#photo-tiles"), hx.Swap("append"),
+		Form(ID("image-upload-form"), hx.Post("/photos/upload"), hx.Trigger("submit"), hx.Encoding("multipart/form-data"), hx.Target("#photo-tiles"), hx.Swap("afterbegin"),
 			Input(Type("file"), Name("photo"), ID("photo-upload"), Accept("image/*"), Multiple(), Class("bg-gray-800 text-white p-2 rounded-md w-full mb-4")),
 			Button(Type("submit"), Class("bg-gray-800 text-white p-2 rounded-md w-full"), g.Text("Upload")),
 		),
