@@ -69,6 +69,11 @@ func (s *PhotoService) UploadPhotos(ctx context.Context, r *http.Request) ([]*Ph
 }
 
 func (s *PhotoService) generateBlurHash(ctx context.Context, src image.Image) (*string, error) {
+	start := time.Now()
+	defer func() {
+		slog.Info("BlurHash generation time", "duration", time.Since(start))
+	}()
+
 	tinyImageForBlurHash, err := s.generateResizedImage(src, 32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
@@ -209,6 +214,11 @@ func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 }
 
 func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.Buffer, error) {
+	start := time.Now()
+	defer func() {
+		slog.Info("Image resizing time", "width", width, "duration", time.Since(start))
+	}()
+
 	// Resize image
 	resized := imaging.Resize(src, width, 0, imaging.Lanczos)
 
@@ -222,6 +232,11 @@ func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.
 }
 
 func (s *PhotoService) generateAndStorePreviews(ctx context.Context, src image.Image, id string) error {
+	start := time.Now()
+	defer func() {
+		slog.Info("Total preview generation and storage time", "duration", time.Since(start))
+	}()
+
 	type Preview struct {
 		resizedImage *image.NRGBA
 		name         string
@@ -244,6 +259,7 @@ func (s *PhotoService) generateAndStorePreviews(ctx context.Context, src image.I
 		go func(preview Preview) {
 			defer wg.Done()
 
+			previewStart := time.Now()
 			slog.Info("Generating preview", "name", preview.name)
 
 			buf, err := s.generateResizedImage(src, preview.width)
@@ -258,6 +274,8 @@ func (s *PhotoService) generateAndStorePreviews(ctx context.Context, src image.I
 				errCh <- fmt.Errorf("failed to store %s preview: %w", preview.name, err)
 				return
 			}
+
+			slog.Info("Preview generated and stored", "name", preview.name, "duration", time.Since(previewStart))
 		}(preview)
 	}
 
