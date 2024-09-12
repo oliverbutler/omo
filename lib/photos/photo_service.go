@@ -10,6 +10,7 @@ import (
 	_ "image/png"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"oliverbutler/lib/database"
 	"oliverbutler/lib/storage"
@@ -44,67 +45,71 @@ type Photo struct {
 	UpdatedAt time.Time
 }
 
-func (s *PhotoService) UploadPhoto(ctx context.Context, r *http.Request) (*Photo, error) {
-	slog.Info("Starting upload photo")
+func (s *PhotoService) UploadPhotos(ctx context.Context, r *http.Request) ([]*Photo, error) {
+	slog.Info("Starting upload photos")
 
-	// Parse the multipart form data
-	err := r.ParseMultipartForm(10 << 20) // 10 MB limit
+	err := r.ParseMultipartForm(100 << 20) // 100 MB limit
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse multipart form: %w", err)
 	}
 
-	// Get the file from the form data
-	file, header, err := r.FormFile("photo")
+	files := r.MultipartForm.File["photo"]
+	photos := make([]*Photo, 0, len(files))
+
+	for _, fileHeader := range files {
+		photo, err := s.processPhoto(ctx, fileHeader)
+		if err != nil {
+			slog.Error("Failed to process photo", "error", err, "filename", fileHeader.Filename)
+			continue
+		}
+		photos = append(photos, photo)
+	}
+
+	return photos, nil
+}
+
+func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.FileHeader) (*Photo, error) {
+	file, err := fileHeader.Open()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file from form: %w", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	// Read file content into buffer
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Generate a unique ID for the photo
 	id := cuid.New()
-	slog.Info("Generated unique ID for photo", "id", id)
+	slog.Info("Processing photo", "id", id, "filename", fileHeader.Filename)
 
-	// Generate file paths for original, large, medium, and small versions
-	ext := strings.ToLower(header.Filename[strings.LastIndex(header.Filename, "."):])
+	ext := strings.ToLower(fileHeader.Filename[strings.LastIndex(fileHeader.Filename, "."):])
 
 	// Store the original file
-	slog.Info("Storing original file")
-	_, err = s.storage.StorageRepo.PutItem(ctx, "photos", id, "original"+ext, bytes.NewReader(fileBytes), int64(len(fileBytes)), header.Header.Get("Content-Type"))
+	_, err = s.storage.StorageRepo.PutItem(ctx, "photos", id, "original"+ext, bytes.NewReader(fileBytes), int64(len(fileBytes)), fileHeader.Header.Get("Content-Type"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to store original file: %w", err)
 	}
 
-	// Generate previews and save them to MinIO in parallel
-	slog.Info("Generating and storing previews")
+	// Generate previews and save them to MinIO
 	if err := s.generateAndStorePreviews(ctx, fileBytes, id); err != nil {
 		return nil, fmt.Errorf("failed to generate and store previews: %w", err)
 	}
 
 	// Generate BlurHash
-	slog.Info("Reading original image and generating BlurHash")
 	originalImage, _, err := image.Decode(bytes.NewReader(fileBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode original image: %w", err)
 	}
 
-	slog.Info("Generating BlurHash")
 	hash, err := blurhash.Encode(4, 3, originalImage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
 	}
-	slog.Info("Generated BlurHash", "hash", hash)
 
-	// Prepare metadata for database insertion
-	slog.Info("Preparing metadata for database insertion")
 	photo := Photo{
 		ID:        id,
-		Name:      header.Filename,
+		Name:      fileHeader.Filename,
 		BlurHash:  hash,
 		Width:     originalImage.Bounds().Dx(),
 		Height:    originalImage.Bounds().Dy(),
@@ -113,13 +118,12 @@ func (s *PhotoService) UploadPhoto(ctx context.Context, r *http.Request) (*Photo
 	}
 
 	// Store metadata in the database
-	slog.Info("Storing metadata in the database", "id", id)
 	err = s.insertPhoto(ctx, &photo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store photo metadata in database: %w", err)
 	}
 
-	slog.Info("Photo uploaded successfully", "id", id)
+	slog.Info("Photo processed successfully", "id", id)
 	return &photo, nil
 }
 

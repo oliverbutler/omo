@@ -77,19 +77,21 @@ func main() {
 		user, _ := app.Users.ExtractUserFromCookies(w, r)
 
 		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
-			slog.Warn("Unauthorized user tried to upload photo")
+			slog.Warn("Unauthorized user tried to upload photos")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		photo, err := app.Photos.UploadPhoto(context.TODO(), r)
+		photos, err := app.Photos.UploadPhotos(r.Context(), r)
 		if err != nil {
-			slog.Error("Failed to upload photo", "error", err)
+			slog.Error("Failed to upload photos", "error", err)
+			http.Error(w, "Failed to upload photos", http.StatusInternalServerError)
 			return
 		}
 
-		slog.Info("Photo uploaded")
-
-		pages.PhotoManageTile(photo).Render(w)
+		for _, photo := range photos {
+			pages.PhotoManageTile(photo).Render(w)
+		}
 	})
 
 	r.Get("/api/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
