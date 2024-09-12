@@ -127,7 +127,11 @@ func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.F
 	return &photo, nil
 }
 
-func (s *PhotoService) GetPhoto(ctx context.Context, id string, quality string) (io.ReadCloser, error) {
+func (s *PhotoService) GetPhoto(ctx context.Context, id string) (*Photo, error) {
+	return s.getPhoto(ctx, id)
+}
+
+func (s *PhotoService) GetPhotoBuffer(ctx context.Context, id string, quality string) (io.ReadCloser, error) {
 	filename := quality + ".jpg"
 	item, err := s.storage.StorageRepo.GetItem(ctx, "photos", id, filename)
 	if err != nil {
@@ -280,4 +284,17 @@ func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
 	}
 
 	return photos, rows.Err()
+}
+
+func (s *PhotoService) getPhoto(ctx context.Context, id string) (*Photo, error) {
+	query := `
+    SELECT id, name, blur_hash, width, height, created_at, updated_at
+    FROM photos
+    WHERE id = $1
+  `
+
+	var photo Photo
+	err := s.db.Pool.QueryRow(ctx, query, id).Scan(&photo.ID, &photo.Name, &photo.BlurHash, &photo.Width, &photo.Height, &photo.CreatedAt, &photo.UpdatedAt)
+
+	return &photo, err
 }

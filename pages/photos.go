@@ -24,14 +24,14 @@ func Photos(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 
 	for _, photo := range photos {
 		photoTiles = append(photoTiles, Div(Class("mb-4 break-inside-avoid"),
-			Img(Src("/api/photos/"+photo.ID+"?quality=medium"),
+			A(Href("/photos/"+photo.ID), Img(Src("/api/photos/"+photo.ID+"?quality=medium"),
 				g.Attr("blur-hash", photo.BlurHash),
 				g.Attr("data-width", fmt.Sprint(photo.Width)),
 				g.Attr("data-height", fmt.Sprint(photo.Height)),
 				Class("w-full rounded-md m-0"),
 				Style("aspect-ratio: "+fmt.Sprintf("%f", float64(photo.Width)/float64(photo.Height))),
 				Alt(photo.Name),
-				Loading("lazy")),
+				Loading("lazy"))),
 		))
 	}
 

@@ -62,6 +62,14 @@ func main() {
 		pages.Photos(context.TODO(), app, user).Render(w)
 	})
 
+	r.Get("/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
+		user, _ := app.Users.ExtractUserFromCookies(w, r)
+
+		id := chi.URLParam(r, "id")
+
+		pages.PhotoPage(context.TODO(), app, user, id).Render(w)
+	})
+
 	r.Get("/photos/manage", func(w http.ResponseWriter, r *http.Request) {
 		user, _ := app.Users.ExtractUserFromCookies(w, r)
 
@@ -115,7 +123,7 @@ func main() {
 		}
 
 		// Retrieve the photo based on quality
-		photo, err := app.Photos.GetPhoto(r.Context(), id, quality)
+		photo, err := app.Photos.GetPhotoBuffer(r.Context(), id, quality)
 		if err != nil {
 			slog.Error("Failed to get photo", "error", err)
 			pages.Error(r.Context(), err).Render(w)
