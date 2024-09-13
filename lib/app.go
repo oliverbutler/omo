@@ -8,6 +8,7 @@ import (
 	"oliverbutler/lib/photos"
 	"oliverbutler/lib/storage"
 	"oliverbutler/lib/users"
+	"oliverbutler/lib/workflow"
 )
 
 type App struct {
@@ -18,6 +19,7 @@ type App struct {
 	Blog        *blog.BlogService
 	Photos      *photos.PhotoService
 	Mapping     *mapping.MappingService
+	Workflow    *workflow.WorkflowService
 }
 
 // Single place services are instantiated, and environment variables are read and passed to the services.
@@ -38,13 +40,21 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
+	workflowService, err := workflow.NewWorkflowService()
+	if err != nil {
+		return nil, err
+	}
+
 	userService := users.NewUserService(db, env)
 
 	blogService := blog.NewBlogService()
 
-	photoService := photos.NewPhotoService(storageService, db)
+	photoService := photos.NewPhotoService(storageService, db, workflowService)
 
 	mappingService := mapping.NewMappingService()
+
+	/// At the end, the background worker is started.
+	workflowService.StartBackgroundWorker()
 
 	return &App{
 		Database:    db,
@@ -54,5 +64,11 @@ func NewApp() (*App, error) {
 		Storage:     storageService,
 		Mapping:     mappingService,
 		Environment: env,
+		Workflow:    workflowService,
 	}, nil
+}
+
+func (a *App) TearDown() {
+	a.Database.TearDown()
+	a.Workflow.TearDown()
 }

@@ -11,6 +11,7 @@ import (
 	"oliverbutler/pages"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/go-chi/chi/v5/middleware"
 
 	_ "github.com/lib/pq"
@@ -26,7 +27,7 @@ func main() {
 		return
 	}
 
-	defer app.Database.Pool.Close()
+	defer app.TearDown()
 
 	fileServer := http.FileServer(http.Dir("./static"))
 
@@ -90,16 +91,14 @@ func main() {
 			return
 		}
 
-		photos, err := app.Photos.UploadPhotos(r.Context(), r)
+		err := app.Photos.UploadPhotosAndStartWorkflows(r.Context(), r)
 		if err != nil {
 			slog.Error("Failed to upload photos", "error", err)
 			http.Error(w, "Failed to upload photos", http.StatusInternalServerError)
 			return
 		}
 
-		for _, photo := range photos {
-			pages.PhotoManageTile(photo).Render(w)
-		}
+		http.Redirect(w, r, "/photos/manage", http.StatusFound)
 	})
 
 	r.Get("/api/photos/{id}", func(w http.ResponseWriter, r *http.Request) {

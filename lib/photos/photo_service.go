@@ -14,25 +14,38 @@ import (
 	"net/http"
 	"oliverbutler/lib/database"
 	"oliverbutler/lib/storage"
+	"oliverbutler/lib/workflow"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/buckket/go-blurhash"
 	"github.com/disintegration/imaging"
 	"github.com/lucsky/cuid"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	temporalWorkflow "go.temporal.io/sdk/workflow"
 )
 
 type PhotoService struct {
-	storage *storage.StorageService
-	db      *database.DatabaseService
+	storage  *storage.StorageService
+	db       *database.DatabaseService
+	workflow *workflow.WorkflowService
 }
 
-func NewPhotoService(storage *storage.StorageService, db *database.DatabaseService) *PhotoService {
-	return &PhotoService{
-		storage: storage,
-		db:      db,
+func NewPhotoService(storage *storage.StorageService, db *database.DatabaseService, workflow *workflow.WorkflowService) *PhotoService {
+	service := &PhotoService{
+		storage:  storage,
+		db:       db,
+		workflow: workflow,
 	}
+
+	workflow.RegisterWorkflow("PhotoUpload", service.NewPhotoUploadWorkflow())
+	workflow.RegisterActivity(service.GeneratePreviewActivity)
+	workflow.RegisterActivity(service.GenerateBlurHashActivity)
+	workflow.RegisterActivity(service.GetPhotoMetaDataAcitivity)
+	workflow.RegisterActivity(service.WritePhotoToDBActivity)
+
+	return service
 }
 
 type Photo struct {
@@ -45,54 +58,225 @@ type Photo struct {
 	UpdatedAt time.Time
 }
 
-func (s *PhotoService) UploadPhotos(ctx context.Context, r *http.Request) ([]*Photo, error) {
+func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *http.Request) error {
 	slog.Info("Starting upload photos")
 
 	err := r.ParseMultipartForm(100 << 20) // 100 MB limit
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse multipart form: %w", err)
+		return fmt.Errorf("failed to parse multipart form: %w", err)
 	}
 
 	files := r.MultipartForm.File["photo"]
-	photos := make([]*Photo, 0, len(files))
 
 	for _, fileHeader := range files {
-		photo, err := s.processPhoto(ctx, fileHeader)
+
+		photoId, err := s.storeOriginalImage(ctx, fileHeader)
 		if err != nil {
-			slog.Error("Failed to process photo", "error", err, "filename", fileHeader.Filename)
-			continue
+			return fmt.Errorf("failed to store original image: %w", err)
 		}
-		photos = append(photos, photo)
+
+		s.workflow.ExecuteWorkflow(context.Background(), client.StartWorkflowOptions{
+			ID:        "photo_upload_" + *photoId,
+			TaskQueue: "oliverbutler",
+		}, "PhotoUpload", *photoId)
 	}
 
-	return photos, nil
+	return nil
 }
 
-func (s *PhotoService) generateBlurHash(ctx context.Context, src image.Image) (*string, error) {
+func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Context, photoId string) (string, error) {
+	return func(ctx temporalWorkflow.Context, photoId string) (string, error) {
+		ao := temporalWorkflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+		}
+		ctx = temporalWorkflow.WithActivityOptions(ctx, ao)
+
+		logger := temporalWorkflow.GetLogger(ctx)
+		logger.Info("Starting photo upload workflow", "photoId", photoId)
+
+		err := temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId:  photoId,
+			SizeName: "small",
+			Width:    300,
+		}).Get(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId:  photoId,
+			SizeName: "medium",
+			Width:    768,
+		}).Get(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId:  photoId,
+			SizeName: "large",
+			Width:    1920,
+		}).Get(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+
+		var blurHash string
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId).Get(ctx, &blurHash)
+		if err != nil {
+			return "", err
+		}
+
+		var photoMetaData PhotoMetaData
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GetPhotoMetaDataAcitivity, photoId).Get(ctx, &photoMetaData)
+		if err != nil {
+			return "", err
+		}
+
+		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
+			ID:        photoId,
+			Name:      photoMetaData.Name,
+			BlurHash:  blurHash,
+			Width:     photoMetaData.Width,
+			Height:    photoMetaData.Height,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}).Get(ctx, nil)
+		if err != nil {
+			return "", err
+		}
+
+		return "Successfully processed image: " + photoId, nil
+	}
+}
+
+type GeneratePreviewActivityParams struct {
+	PhotoId  string
+	SizeName string
+	Width    int
+}
+
+func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params GeneratePreviewActivityParams) error {
+	logger := activity.GetLogger(ctx)
+
+	logger.Info("Generating preview for photo", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
+
+	/// Pull down original photo from storage
+	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", params.PhotoId, "original.jpg")
+	if err != nil {
+		return fmt.Errorf("failed to get original photo: %w", err)
+	}
+
+	/// Decode original photo
+	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
+	if err != nil {
+		return fmt.Errorf("failed to get original photo content: %w", err)
+	}
+
+	originalImage, _, err := image.Decode(originalPhotoContent)
+	if err != nil {
+		return fmt.Errorf("failed to decode original image: %w", err)
+	}
+
+	/// Generate preview image
+	preview, err := s.generateResizedImage(originalImage, params.Width)
+	if err != nil {
+		return fmt.Errorf("failed to generate resized image: %w", err)
+	}
+
+	/// Store preview image in storage
+	_, err = s.storage.StorageRepo.PutItem(ctx, "photos", params.PhotoId, params.SizeName+".jpg", preview, int64(preview.Len()), "image/jpeg")
+	if err != nil {
+		return fmt.Errorf("failed to store preview image: %w", err)
+	}
+
+	logger.Info("Preview generated successfully", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
+
+	return nil
+}
+
+func (s *PhotoService) GenerateBlurHashActivity(ctx context.Context, photoId string) (string, error) {
+	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, "original.jpg")
+	if err != nil {
+		return "", fmt.Errorf("failed to get original photo: %w", err)
+	}
+
+	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
+	if err != nil {
+		return "", fmt.Errorf("failed to get original photo content: %w", err)
+	}
+
+	originalImage, _, err := image.Decode(originalPhotoContent)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode original image: %w", err)
+	}
+
 	start := time.Now()
 	defer func() {
 		slog.Info("BlurHash generation time", "duration", time.Since(start))
 	}()
 
-	tinyImageForBlurHash, err := s.generateResizedImage(src, 32)
+	tinyImageForBlurHash, err := s.generateResizedImage(originalImage, 32)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
+		return "", fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
 	}
 
-	originalImage, _, err := image.Decode(bytes.NewReader(tinyImageForBlurHash.Bytes()))
+	tinyImage, _, err := image.Decode(bytes.NewReader(tinyImageForBlurHash.Bytes()))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode original image: %w", err)
+		return "", fmt.Errorf("failed to decode original image: %w", err)
 	}
 
-	hash, err := blurhash.Encode(4, 3, originalImage)
+	hash, err := blurhash.Encode(4, 3, tinyImage)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
+		return "", fmt.Errorf("failed to generate BlurHash: %w", err)
 	}
 
-	return &hash, nil
+	return hash, nil
 }
 
-func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.FileHeader) (*Photo, error) {
+type PhotoMetaData struct {
+	Name   string
+	Width  int
+	Height int
+}
+
+func (s *PhotoService) GetPhotoMetaDataAcitivity(ctx context.Context, id string) (PhotoMetaData, error) {
+	metadata := PhotoMetaData{}
+
+	/// Pull down original photo from storage
+	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", id, "original.jpg")
+	if err != nil {
+		return metadata, fmt.Errorf("failed to get original photo: %w", err)
+	}
+
+	/// Decode original photo
+	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
+	if err != nil {
+		return metadata, fmt.Errorf("failed to get original photo content: %w", err)
+	}
+
+	originalImage, _, err := image.Decode(originalPhotoContent)
+	if err != nil {
+		return metadata, fmt.Errorf("failed to decode original image: %w", err)
+	}
+
+	return PhotoMetaData{
+		Name:   originalPhoto.Name,
+		Width:  originalImage.Bounds().Dx(),
+		Height: originalImage.Bounds().Dy(),
+	}, nil
+}
+
+func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) error {
+	err := s.insertPhoto(ctx, &photo)
+	if err != nil {
+		return fmt.Errorf("failed to insert photo into database: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PhotoService) storeOriginalImage(ctx context.Context, fileHeader *multipart.FileHeader) (*string, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -115,45 +299,7 @@ func (s *PhotoService) processPhoto(ctx context.Context, fileHeader *multipart.F
 		return nil, fmt.Errorf("failed to store original file: %w", err)
 	}
 
-	src, err := imaging.Decode(bytes.NewReader(fileBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode original image: %w", err)
-	}
-
-	// Generate previews and save them to MinIO
-	if err := s.generateAndStorePreviews(ctx, src, id); err != nil {
-		return nil, fmt.Errorf("failed to generate and store previews: %w", err)
-	}
-
-	// Generate BlurHash
-	hash, err := s.generateBlurHash(ctx, src)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
-	}
-
-	originalImage, _, err := image.Decode(bytes.NewReader(fileBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode original image: %w", err)
-	}
-
-	photo := Photo{
-		ID:        id,
-		Name:      fileHeader.Filename,
-		BlurHash:  *hash,
-		Width:     originalImage.Bounds().Dx(),
-		Height:    originalImage.Bounds().Dy(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// Store metadata in the database
-	err = s.insertPhoto(ctx, &photo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store photo metadata in database: %w", err)
-	}
-
-	slog.Info("Photo processed successfully", "id", id)
-	return &photo, nil
+	return &id, nil
 }
 
 func (s *PhotoService) GetPhoto(ctx context.Context, id string) (*Photo, error) {
@@ -229,66 +375,6 @@ func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.
 	}
 
 	return &buf, nil
-}
-
-func (s *PhotoService) generateAndStorePreviews(ctx context.Context, src image.Image, id string) error {
-	start := time.Now()
-	defer func() {
-		slog.Info("Total preview generation and storage time", "duration", time.Since(start))
-	}()
-
-	type Preview struct {
-		resizedImage *image.NRGBA
-		name         string
-		width        int
-		format       imaging.Format
-		mimeType     string
-	}
-
-	previews := []Preview{
-		{name: "large.jpg", width: 1920, format: imaging.JPEG, mimeType: "image/jpeg"},
-		{name: "medium.jpg", width: 768, format: imaging.JPEG, mimeType: "image/jpeg"},
-		{name: "small.jpg", width: 300, format: imaging.JPEG, mimeType: "image/jpeg"},
-	}
-
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(previews))
-
-	for _, preview := range previews {
-		wg.Add(1)
-		go func(preview Preview) {
-			defer wg.Done()
-
-			previewStart := time.Now()
-			slog.Info("Generating preview", "name", preview.name)
-
-			buf, err := s.generateResizedImage(src, preview.width)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to generate %s preview: %w", preview.name, err)
-				return
-			}
-
-			// Store preview in storage
-			slog.Info("Storing preview", "name", preview.name)
-			if _, err := s.storage.StorageRepo.PutItem(ctx, "photos", id, preview.name, buf, int64(buf.Len()), preview.mimeType); err != nil {
-				errCh <- fmt.Errorf("failed to store %s preview: %w", preview.name, err)
-				return
-			}
-
-			slog.Info("Preview generated and stored", "name", preview.name, "duration", time.Since(previewStart))
-		}(preview)
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (s *PhotoService) GetPhotos(ctx context.Context) ([]Photo, error) {

@@ -49,3 +49,7 @@ func NewDatabaseService(env *environment.EnvironmentService) (*DatabaseService, 
 
 	return &DatabaseService{Pool: pool}, nil
 }
+
+func (d *DatabaseService) TearDown() {
+	d.Pool.Close()
+}

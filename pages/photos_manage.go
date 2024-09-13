@@ -35,7 +35,7 @@ func PhotoManageTile(photo *photos.Photo) g.Node {
 				Sub(Class("text-gray-200"), g.Text(photo.ID)),
 			),
 			Div(Class("flex flex-col gap-2"),
-				Button(Class("bg-red-800 text-white p-2 rounded-md"), g.Text("Delete"), hx.Delete("/photos/"+photo.ID), hx.Trigger("click"), hx.Confirm("Are you sure you want to delete this photo?"),
+				Button(Class("bg-red-800 text-white p-2 rounded-md"), g.Text("Delete"), hx.Delete("/photos/"+photo.ID), hx.Trigger("click"),
 					hx.Target("closest #image"+photo.ID), hx.Swap("outerHTML")),
 			),
 		))
