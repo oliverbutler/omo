@@ -40,7 +40,7 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	workflowService, err := workflow.NewWorkflowService()
+	workflowService, err := workflow.NewWorkflowService(env)
 	if err != nil {
 		return nil, err
 	}

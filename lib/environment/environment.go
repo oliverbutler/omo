@@ -20,6 +20,7 @@ type EnvironmentService struct {
 	minioAccessKey     string
 	minioSecretKey     string
 	minioUseSSL        bool
+	temporalHost       string
 	githubClientId     string
 	githubClientSecret string
 	env                Environment
@@ -67,6 +68,8 @@ func (e *EnvironmentService) load() error {
 	e.minioAccessKey = e.getEnvOrDefault("MINIO_ACCESS_KEY", "")
 	e.minioSecretKey = e.getEnvOrDefault("MINIO_SECRET_KEY", "")
 	e.minioUseSSL = e.getEnvAsBool("MINIO_USE_SSL", false)
+
+	e.temporalHost = e.getEnvOrDefault("TEMPORAL_HOST", "localhost:7233")
 
 	e.githubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
 	e.githubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
@@ -149,6 +152,10 @@ func (e *EnvironmentService) GetMinioSecretKey() string {
 
 func (e *EnvironmentService) GetMinioUseSSL() bool {
 	return e.minioUseSSL
+}
+
+func (e *EnvironmentService) GetTemporalHost() string {
+	return e.temporalHost
 }
 
 func (e *EnvironmentService) GetEnv() Environment {

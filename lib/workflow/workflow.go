@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"log/slog"
+	"oliverbutler/lib/environment"
 
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
@@ -14,8 +15,10 @@ type WorkflowService struct {
 	worker *worker.Worker
 }
 
-func NewWorkflowService() (*WorkflowService, error) {
-	c, err := client.Dial(client.Options{})
+func NewWorkflowService(environment *environment.EnvironmentService) (*WorkflowService, error) {
+	c, err := client.Dial(client.Options{
+		HostPort: environment.GetTemporalHost(),
+	})
 	if err != nil {
 		slog.Error("Unable to create client", "error", err)
 		return nil, err
