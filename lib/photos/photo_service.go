@@ -94,45 +94,54 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 		logger := temporalWorkflow.GetLogger(ctx)
 		logger.Info("Starting photo upload workflow", "photoId", photoId)
 
-		err := temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId:  photoId,
-			SizeName: "small",
-			Width:    300,
-		}).Get(ctx, nil)
-		if err != nil {
-			return "", err
-		}
-
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId:  photoId,
-			SizeName: "medium",
-			Width:    768,
-		}).Get(ctx, nil)
-		if err != nil {
-			return "", err
-		}
-
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId:  photoId,
-			SizeName: "large",
-			Width:    1920,
-		}).Get(ctx, nil)
-		if err != nil {
-			return "", err
-		}
-
 		var blurHash string
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId).Get(ctx, &blurHash)
-		if err != nil {
-			return "", err
-		}
-
 		var photoMetaData PhotoMetaData
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GetPhotoMetaDataAcitivity, photoId).Get(ctx, &photoMetaData)
+		var futureSmall, futureMedium, futureLarge, futureBlurHash, futureMetaData temporalWorkflow.Future
+
+		// Start all activities concurrently
+		futureSmall = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId: photoId, SizeName: "small", Width: 300,
+		})
+
+		futureMedium = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId: photoId, SizeName: "medium", Width: 768,
+		})
+
+		futureLarge = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
+			PhotoId: photoId, SizeName: "large", Width: 1920,
+		})
+
+		futureBlurHash = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId)
+
+		futureMetaData = temporalWorkflow.ExecuteActivity(ctx, s.GetPhotoMetaDataAcitivity, photoId)
+
+		// Wait for all activities to complete and check for errors
+		err := futureSmall.Get(ctx, nil)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to generate small preview: %w", err)
 		}
 
+		err = futureMedium.Get(ctx, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate medium preview: %w", err)
+		}
+
+		err = futureLarge.Get(ctx, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate large preview: %w", err)
+		}
+
+		err = futureBlurHash.Get(ctx, &blurHash)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate blur hash: %w", err)
+		}
+
+		err = futureMetaData.Get(ctx, &photoMetaData)
+		if err != nil {
+			return "", fmt.Errorf("failed to get photo metadata: %w", err)
+		}
+
+		// Write to DB
 		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
 			ID:        photoId,
 			Name:      photoMetaData.Name,
@@ -143,7 +152,7 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 			UpdatedAt: time.Now(),
 		}).Get(ctx, nil)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write photo to DB: %w", err)
 		}
 
 		return "Successfully processed image: " + photoId, nil
