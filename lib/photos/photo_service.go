@@ -42,7 +42,6 @@ func NewPhotoService(storage *storage.StorageService, db *database.DatabaseServi
 	workflow.RegisterWorkflow("PhotoUpload", service.NewPhotoUploadWorkflow())
 	workflow.RegisterActivity(service.GeneratePreviewActivity)
 	workflow.RegisterActivity(service.GenerateBlurHashActivity)
-	workflow.RegisterActivity(service.GetPhotoMetaDataAcitivity)
 	workflow.RegisterActivity(service.WritePhotoToDBActivity)
 
 	return service
@@ -94,11 +93,8 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 		logger := temporalWorkflow.GetLogger(ctx)
 		logger.Info("Starting photo upload workflow", "photoId", photoId)
 
-		var blurHash string
-		var photoMetaData PhotoMetaData
-		var futureSmall, futureMedium, futureLarge, futureBlurHash, futureMetaData temporalWorkflow.Future
+		var futureSmall, futureMedium, futureLarge temporalWorkflow.Future
 
-		// Start all activities concurrently
 		futureSmall = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
 			PhotoId: photoId, SizeName: "small", Width: 300,
 		})
@@ -110,10 +106,6 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 		futureLarge = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
 			PhotoId: photoId, SizeName: "large", Width: 1920,
 		})
-
-		futureBlurHash = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId)
-
-		futureMetaData = temporalWorkflow.ExecuteActivity(ctx, s.GetPhotoMetaDataAcitivity, photoId)
 
 		// Wait for all activities to complete and check for errors
 		err := futureSmall.Get(ctx, nil)
@@ -131,21 +123,15 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 			return "", fmt.Errorf("failed to generate large preview: %w", err)
 		}
 
-		err = futureBlurHash.Get(ctx, &blurHash)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate blur hash: %w", err)
-		}
+		var photoMetaData PhotoMetaData
 
-		err = futureMetaData.Get(ctx, &photoMetaData)
-		if err != nil {
-			return "", fmt.Errorf("failed to get photo metadata: %w", err)
-		}
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId).Get(ctx, &photoMetaData)
 
 		// Write to DB
 		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
 			ID:        photoId,
 			Name:      photoMetaData.Name,
-			BlurHash:  blurHash,
+			BlurHash:  photoMetaData.BlurHash,
 			Width:     photoMetaData.Width,
 			Height:    photoMetaData.Height,
 			CreatedAt: time.Now(),
@@ -204,20 +190,20 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 	return nil
 }
 
-func (s *PhotoService) GenerateBlurHashActivity(ctx context.Context, photoId string) (string, error) {
+func (s *PhotoService) GenerateBlurHashActivity(ctx context.Context, photoId string) (*PhotoMetaData, error) {
 	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, "original.jpg")
 	if err != nil {
-		return "", fmt.Errorf("failed to get original photo: %w", err)
+		return nil, fmt.Errorf("failed to get original photo: %w", err)
 	}
 
 	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
 	if err != nil {
-		return "", fmt.Errorf("failed to get original photo content: %w", err)
+		return nil, fmt.Errorf("failed to get original photo content: %w", err)
 	}
 
 	originalImage, _, err := image.Decode(originalPhotoContent)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode original image: %w", err)
+		return nil, fmt.Errorf("failed to decode original image: %w", err)
 	}
 
 	start := time.Now()
@@ -227,53 +213,32 @@ func (s *PhotoService) GenerateBlurHashActivity(ctx context.Context, photoId str
 
 	tinyImageForBlurHash, err := s.generateResizedImage(originalImage, 32)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
+		return nil, fmt.Errorf("failed to generate tiny image for BlurHash: %w", err)
 	}
 
 	tinyImage, _, err := image.Decode(bytes.NewReader(tinyImageForBlurHash.Bytes()))
 	if err != nil {
-		return "", fmt.Errorf("failed to decode original image: %w", err)
+		return nil, fmt.Errorf("failed to decode original image: %w", err)
 	}
 
 	hash, err := blurhash.Encode(4, 3, tinyImage)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate BlurHash: %w", err)
+		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
 	}
 
-	return hash, nil
+	return &PhotoMetaData{
+		Name:     originalPhoto.Name,
+		BlurHash: hash,
+		Width:    originalImage.Bounds().Dx(),
+		Height:   originalImage.Bounds().Dy(),
+	}, nil
 }
 
 type PhotoMetaData struct {
-	Name   string
-	Width  int
-	Height int
-}
-
-func (s *PhotoService) GetPhotoMetaDataAcitivity(ctx context.Context, id string) (PhotoMetaData, error) {
-	metadata := PhotoMetaData{}
-
-	/// Pull down original photo from storage
-	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", id, "original.jpg")
-	if err != nil {
-		return metadata, fmt.Errorf("failed to get original photo: %w", err)
-	}
-
-	/// Decode original photo
-	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
-	if err != nil {
-		return metadata, fmt.Errorf("failed to get original photo content: %w", err)
-	}
-
-	originalImage, _, err := image.Decode(originalPhotoContent)
-	if err != nil {
-		return metadata, fmt.Errorf("failed to decode original image: %w", err)
-	}
-
-	return PhotoMetaData{
-		Name:   originalPhoto.Name,
-		Width:  originalImage.Bounds().Dx(),
-		Height: originalImage.Bounds().Dy(),
-	}, nil
+	Name     string
+	BlurHash string
+	Width    int
+	Height   int
 }
 
 func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) error {
