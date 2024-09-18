@@ -23,7 +23,9 @@ import (
 	"github.com/lucsky/cuid"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
 	temporalWorkflow "go.temporal.io/sdk/workflow"
+	// "golang.org/x/exp/rand"
 )
 
 type PhotoService struct {
@@ -41,7 +43,7 @@ func NewPhotoService(storage *storage.StorageService, db *database.DatabaseServi
 
 	workflow.RegisterWorkflow("PhotoUpload", service.NewPhotoUploadWorkflow())
 	workflow.RegisterActivity(service.GeneratePreviewActivity)
-	workflow.RegisterActivity(service.GenerateBlurHashActivity)
+	workflow.RegisterActivity(service.GenerateBlurHashAndMetadataActivity)
 	workflow.RegisterActivity(service.WritePhotoToDBActivity)
 
 	return service
@@ -87,6 +89,9 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 	return func(ctx temporalWorkflow.Context, photoId string) (string, error) {
 		ao := temporalWorkflow.ActivityOptions{
 			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts: 6,
+			},
 		}
 		ctx = temporalWorkflow.WithActivityOptions(ctx, ao)
 
@@ -109,25 +114,16 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 
 		// Wait for all activities to complete and check for errors
 		err := futureSmall.Get(ctx, nil)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate small preview: %w", err)
-		}
-
 		err = futureMedium.Get(ctx, nil)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate medium preview: %w", err)
-		}
-
 		err = futureLarge.Get(ctx, nil)
 		if err != nil {
-			return "", fmt.Errorf("failed to generate large preview: %w", err)
+			return "", fmt.Errorf("failed to generate preview: %w", err)
 		}
 
 		var photoMetaData PhotoMetaData
+		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashAndMetadataActivity, photoId).Get(ctx, &photoMetaData)
 
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashActivity, photoId).Get(ctx, &photoMetaData)
-
-		// Write to DB
+		// Now that we have the metadata, we can write the photo to the database
 		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
 			ID:        photoId,
 			Name:      photoMetaData.Name,
@@ -187,10 +183,18 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 
 	logger.Info("Preview generated successfully", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
 
+	// /// NOTE: This is test code, introduce a "error" here 33% of the time
+	// if rand.Intn(3) == 0 {
+	//
+	// 	time.Sleep(20 * time.Second)
+	//
+	// 	return fmt.Errorf("Oh no, something went wrong")
+	// }
+
 	return nil
 }
 
-func (s *PhotoService) GenerateBlurHashActivity(ctx context.Context, photoId string) (*PhotoMetaData, error) {
+func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, photoId string) (*PhotoMetaData, error) {
 	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, "original.jpg")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get original photo: %w", err)

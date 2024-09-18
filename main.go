@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"oliverbutler/components"
 	"oliverbutler/lib"
 	"oliverbutler/lib/environment"
 	"oliverbutler/pages"
@@ -98,7 +99,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/photos/manage", http.StatusFound)
+		components.SucceessBanner("Photos uploaded successfully").Render(w)
 	})
 
 	r.Get("/api/photos/{id}", func(w http.ResponseWriter, r *http.Request) {
