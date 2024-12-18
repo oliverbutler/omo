@@ -37,7 +37,7 @@ spec:
         - name: DB_PASSWORD
           value: "password"
         - name: BASE_URL
-          value: "http://10.0.70.11:6900"
+          value: "http://oliverbutler.uk"
         - name: ENV
           value: "production"
         - name: ROOT_STORAGE_PATH
