@@ -35,15 +35,11 @@ spec:
             command: ["pg_isready", "-U", "postgres"]
           initialDelaySeconds: 5
           periodSeconds: 10
-  volumeClaimTemplates:
-  - metadata:
-      name: pgdata
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "local-path"
-      resources:
-        requests:
-          storage: 5Gi
+      volumes:
+      - name: pgdata
+        hostPath:
+          path: /home/omo/postgres
+          type: DirectoryOrCreate
 
 ---
 apiVersion: v1
