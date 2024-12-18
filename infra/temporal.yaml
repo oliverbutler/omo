@@ -64,10 +64,14 @@ spec:
       - name: temporal-ui
         image: temporalio/ui:2.30.3
         env:
+        - name: TEMPORAL_UI_PORT
+          value: 8080
         - name: TEMPORAL_ADDRESS
           value: "temporal:7233"
         - name: TEMPORAL_CORS_ORIGINS
-          value: "http://localhost:3000"
+          value: "http://10.0.70.11:6900"
+        - name: TEMPORAL_CSRF_COOKIE_INSECURE
+          value: 'true'
         ports:
         - containerPort: 8080
 ---
