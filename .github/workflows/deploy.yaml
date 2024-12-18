@@ -38,3 +38,19 @@ jobs:
             ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}
             ghcr.io/oliverbutler/omo:latest
           platforms: linux/amd64
+
+      - name: Bump deployment image 🚀
+        run: |
+          sed -i "s|image: ghcr.io/oliverbutler/omo:.*|image: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}|" infra/app.yaml
+        shell: bash
+
+      - name: Commit and push changes 📝
+        run: |
+          git config --global user.email "omo@oliverbutler.uk"
+          git config --global user.name "GitHub Actions"
+          git add infra/app.yaml
+          git commit -m "Bump deployment image to ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

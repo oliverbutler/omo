@@ -178,6 +178,9 @@ func main() {
 			pages.Error(context.TODO(), err).Render(w)
 			return
 		}
+
+		secureCookie := app.Environment.GetEnv() == environment.Production
+
 		// Set cookies
 		http.SetCookie(w, &http.Cookie{
 			Name:     "AccessToken",
@@ -185,7 +188,7 @@ func main() {
 			MaxAge:   1800,
 			Path:     "/",
 			Domain:   app.Environment.GetDomain(),
-			Secure:   true,
+			Secure:   secureCookie,
 			HttpOnly: true,
 		})
 
@@ -195,7 +198,7 @@ func main() {
 			MaxAge:   10000,
 			Path:     "/",
 			Domain:   app.Environment.GetDomain(),
-			Secure:   true,
+			Secure:   secureCookie,
 			HttpOnly: true,
 		})
 
@@ -205,7 +208,7 @@ func main() {
 			MaxAge:   10000,
 			Path:     "/",
 			Domain:   app.Environment.GetDomain(),
-			Secure:   true,
+			Secure:   secureCookie,
 			HttpOnly: true,
 		})
 
