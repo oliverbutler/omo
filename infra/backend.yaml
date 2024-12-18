@@ -1,33 +1,3 @@
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: backend-pv
-  namespace: default
-spec:
-  capacity:
-    storage: 5Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-path
-  hostPath:
-    path: /home/omo/backend
-    type: DirectoryOrCreate
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: backend-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: local-path
-  resources:
-    requests:
-      storage: 5Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,6 +13,11 @@ spec:
       labels:
         app: backend
     spec:
+      volumes:
+      - name: backend-storage
+        hostPath:
+          path: /home/omo/backend
+          type: DirectoryOrCreate
       containers:
       - name: backend
         image: ghcr.io/oliverbutler/omo:2024-12-18T194447Z-b9c3be5
@@ -77,6 +52,9 @@ spec:
             secretKeyRef:
               name: omo-secrets
               key: GITHUB_CLIENT_SECRET
+        volumeMounts:
+        - name: backend-storage
+          mountPath: /home/omo/backend
         readinessProbe:
           httpGet:
             path: /
