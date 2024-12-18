@@ -6,15 +6,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/oliverbutler/omo.git
-    targetRevision: HEAD
-    path: infra
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: 6.11.3
+    chart: promtail
     helm:
       valueFiles:
-        - promtail-values.yaml
-      chart: promtail
-      version: 6.11.3
-      repo: https://grafana.github.io/helm-charts
+        - https://raw.githubusercontent.com/oliverbutler/omo/HEAD/infra/promtail-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
