@@ -2,15 +2,16 @@ version: '3.8'
 
 # Extends from the base docker-compose.yml
 services:
-  nginx:
-    image: nginx:alpine
+  backend:
+    image: ghcr.io/oliverbutler/omo:IMAGE_TAG # In CI will will template IMAGE_TAG with the relevant SHA
     ports:
-      - target: 80
-        published: 80
+      - target: 6900
+        published: 6900
         protocol: tcp
         mode: host
     depends_on:
       - db
+      - temporal
     deploy:
       update_config:
         order: start-first
