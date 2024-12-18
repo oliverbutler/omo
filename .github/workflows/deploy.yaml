@@ -41,7 +41,7 @@ jobs:
 
       - name: Bump deployment image 🚀
         run: |
-          sed -i "s|image: ghcr.io/oliverbutler/omo:.*|image: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}|" infra/app.yaml
+          sed -i "s|image: ghcr.io/oliverbutler/omo:.*|image: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}|" infra/backend.yaml
         shell: bash
 
       - name: Commit and push changes 📝
