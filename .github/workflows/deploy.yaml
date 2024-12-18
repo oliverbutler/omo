@@ -18,7 +18,9 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          RUNNER_TOOL_CACHE: /toolcache
 
       - name: Generate image tag 🏷️
         id: generate_tag
