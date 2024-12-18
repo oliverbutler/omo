@@ -32,8 +32,6 @@ func NewDatabaseService(env *environment.EnvironmentService) (*DatabaseService, 
 
 	slog.Info(fmt.Sprintf("Connected to database: %s at %s:%s", env.GetDbName(), env.GetDbHost(), env.GetDbPort()))
 
-	defer db.Close()
-
 	gooseProvider, err := goose.NewProvider(goose.DialectPostgres, db, os.DirFS("./migrations"))
 
 	res, err := gooseProvider.Up(context.Background())
