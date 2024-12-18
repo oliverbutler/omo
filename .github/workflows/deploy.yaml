@@ -34,5 +34,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}, ghcr.io/oliverbuler/omo:latest
+          tags: |
+            ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}
+            ghcr.io/oliverbutler/omo:latest
           platforms: linux/amd64
