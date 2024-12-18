@@ -4,8 +4,9 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      RUNNER_TOOL_CACHE: /toolcache
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code ⤵️
         uses: actions/checkout@v3
@@ -18,9 +19,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          RUNNER_TOOL_CACHE: /toolcache
+          password: ${{ secrets.CR_PAT }}
 
       - name: Generate image tag 🏷️
         id: generate_tag
@@ -39,5 +38,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}
+          tags: ghcr.io/${{ github.repository_owner }}/omo:${{ steps.generate_tag.outputs.image_tag }}
           platforms: linux/amd64
