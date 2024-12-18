@@ -1,0 +1,31 @@
+config:
+  clients:
+    - url: http://10.0.0.40:3100/loki/api/v1/push
+
+  snippets:
+    extraScrapeConfigs: |
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_namespace
+            target_label: kubernetes_namespace
+          - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: kubernetes_pod_name
+
+serviceMonitor:
+  enabled: false
+
+tolerations:
+  - effect: NoSchedule
+    operator: Exists
+
+rbac:
+  create: true
+  pspEnabled: false
