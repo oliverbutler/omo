@@ -8,10 +8,10 @@ spec:
   source:
     repoURL: https://github.com/oliverbutler/omo.git
     targetRevision: HEAD
-    path: infra/promtail
+    path: infra
     helm:
       valueFiles:
-        - values.yaml
+        - promtail-values.yaml
       chart: promtail
       version: 6.11.3
       repo: https://grafana.github.io/helm-charts
