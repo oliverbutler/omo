@@ -10,17 +10,10 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  local:
+  storageClassName: local-path
+  hostPath:
     path: /home/omo/postgres
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - your-node-name  # Replace with your actual node name
+    type: DirectoryOrCreate
 
 ---
 apiVersion: v1
@@ -31,7 +24,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-storage
+  storageClassName: local-path
   resources:
     requests:
       storage: 5Gi
@@ -67,6 +60,7 @@ spec:
         volumeMounts:
         - name: pgdata
           mountPath: /var/lib/postgresql/data
+          subPath: postgres
         readinessProbe:
           exec:
             command: ["pg_isready", "-U", "postgres"]
@@ -90,3 +84,4 @@ spec:
     - protocol: TCP
       port: 5432
       targetPort: 5432
+  type: ClusterIP
