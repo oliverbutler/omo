@@ -48,7 +48,7 @@ jobs:
         run: |
           git config --global user.email "omo@oliverbutler.uk"
           git config --global user.name "GitHub Actions"
-          git add infra/app.yaml
+          git add infra/backend.yaml
           git commit -m "Bump deployment image to ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}"
           git push
         env:
