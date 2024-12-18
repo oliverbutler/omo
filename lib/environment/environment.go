@@ -16,10 +16,7 @@ type EnvironmentService struct {
 	dbName             string
 	dbUser             string
 	dbPassword         string
-	minioEndpoint      string
-	minioAccessKey     string
-	minioSecretKey     string
-	minioUseSSL        bool
+	rootStoragePath    string
 	temporalHost       string
 	githubClientId     string
 	githubClientSecret string
@@ -64,10 +61,7 @@ func (e *EnvironmentService) load() error {
 
 	e.dbPort = e.getEnvOrDefault("DB_PORT", "5432")
 
-	e.minioEndpoint = e.getEnvOrDefault("MINIO_ENDPOINT", "")
-	e.minioAccessKey = e.getEnvOrDefault("MINIO_ACCESS_KEY", "")
-	e.minioSecretKey = e.getEnvOrDefault("MINIO_SECRET_KEY", "")
-	e.minioUseSSL = e.getEnvAsBool("MINIO_USE_SSL", false)
+	e.rootStoragePath = e.getEnvOrDefault("ROOT_STORAGE_PATH", "/tmp/storage")
 
 	e.temporalHost = e.getEnvOrDefault("TEMPORAL_HOST", "localhost:7233")
 
@@ -138,20 +132,8 @@ func (e *EnvironmentService) GetDbPassword() string {
 	return e.dbPassword
 }
 
-func (e *EnvironmentService) GetMinioEndpoint() string {
-	return e.minioEndpoint
-}
-
-func (e *EnvironmentService) GetMinioAccessKey() string {
-	return e.minioAccessKey
-}
-
-func (e *EnvironmentService) GetMinioSecretKey() string {
-	return e.minioSecretKey
-}
-
-func (e *EnvironmentService) GetMinioUseSSL() bool {
-	return e.minioUseSSL
+func (e *EnvironmentService) GetRootStoragePath() string {
+	return e.rootStoragePath
 }
 
 func (e *EnvironmentService) GetTemporalHost() string {
