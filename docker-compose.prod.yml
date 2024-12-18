@@ -3,7 +3,7 @@ version: '3.8'
 # Extends from the base docker-compose.yml
 services:
   backend:
-    image: ghcr.io/oliverbutler/omo:IMAGE_TAG # In CI will will template IMAGE_TAG with the relevant SHA
+    image: ghcr.io/oliverbutler/omo:latest # In CI will will template "latest" with the relevant SHA
     ports:
       - target: 6900
         published: 6900

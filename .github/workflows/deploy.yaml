@@ -34,5 +34,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/omo:${{ steps.generate_tag.outputs.image_tag }}
+          tags: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}, ghcr.io/oliverbuler/omo:latest
           platforms: linux/amd64
