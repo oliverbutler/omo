@@ -10,6 +10,7 @@ import (
 	"oliverbutler/lib"
 	"oliverbutler/lib/environment"
 	"oliverbutler/pages"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -179,7 +180,7 @@ func main() {
 			return
 		}
 
-		secureCookie := app.Environment.GetEnv() == environment.Production
+		secureCookie := strings.HasPrefix(app.Environment.GetBaseURL(), "https")
 
 		// Set cookies
 		http.SetCookie(w, &http.Cookie{
