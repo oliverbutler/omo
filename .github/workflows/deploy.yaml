@@ -13,6 +13,13 @@ jobs:
       - name: Set up Docker Buildx 👷
         uses: docker/setup-buildx-action@v2
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Generate image tag 🏷️
         id: generate_tag
         run: |
@@ -21,7 +28,7 @@ jobs:
           IMAGE_TAG="${ISO_TIMESTAMP}-${SHORT_SHA}"
           # Replace colons and plus signs to comply with Docker tag rules
           IMAGE_TAG_SANITIZED=$(echo "${IMAGE_TAG}" | tr -d ':' | tr '+' '-')
-          echo "::set-output name=image_tag::${IMAGE_TAG_SANITIZED}"
+          echo "image_tag=${IMAGE_TAG_SANITIZED}" >> $GITHUB_OUTPUT
         env:
           GITHUB_SHA: ${{ github.sha }}
 
