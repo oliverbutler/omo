@@ -10,13 +10,14 @@ services:
         protocol: tcp
         mode: host
     environment:
+      - 'TEMPORAL_HOST=temporal:7233'
       - 'DB_HOST=db'
       - 'DB_NAME=oliverbutler'
       - 'DB_USER=postgres'
       - 'DB_PORT=5432'
       - 'DB_PASSWORD=password'
-      - 'TEMPORAL_HOST=temporal:7233'
-
+      - 'BASE_URL=http://0.0.0.0:6900'
+      - 'ENV=production'
     depends_on:
       - db
       - temporal
@@ -25,5 +26,5 @@ services:
         order: start-first
       restart_policy:
         condition: on-failure
-        max_attempts: 10
+        max_attempts: 20
         window: 120s
