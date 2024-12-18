@@ -65,6 +65,8 @@ spec:
           value: "http://10.0.70.11:6900"
         - name: ENV
           value: "production"
+        - name: ROOT_STORAGE_PATH
+          value: '/home/omo/backend'
         - name: GITHUB_CLIENT_ID
           valueFrom:
             secretKeyRef:
