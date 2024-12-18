@@ -70,32 +70,17 @@ spec:
       - name: pgdata
         persistentVolumeClaim:
           claimName: postgres-pvc
-
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: postgres-service
   namespace: default
 spec:
   selector:
     app: postgres
-  ports:
-    - protocol: TCP
-      port: 5432
-      targetPort: 5432
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-external
-  namespace: default
-spec:
-  selector:
-    app: postgres
-  ports:
-    - protocol: TCP
-      port: 5432
-      targetPort: 5432
   type: NodePort
+  ports:
+    - port: 5432
+      targetPort: 5432
+      nodePort: 5432
