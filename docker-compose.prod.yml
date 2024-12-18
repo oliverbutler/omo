@@ -9,6 +9,8 @@ services:
         published: 6900
         protocol: tcp
         mode: host
+    environment:
+      - 'DB_HOST=localhost'
     depends_on:
       - db
       - temporal
