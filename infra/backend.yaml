@@ -67,11 +67,6 @@ spec:
             port: 6900
           initialDelaySeconds: 15
           periodSeconds: 10
-      volumes:
-      - name: pgdata
-        persistentVolumeClaim:
-          claimName: backend-pvc
-
 ---
 apiVersion: v1
 kind: Service
