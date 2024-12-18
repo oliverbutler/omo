@@ -45,7 +45,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: ghcr.io/oliverbutler/omo:2024-12-18T182713Z-dd5b2b9
+        image: ghcr.io/oliverbutler/omo:2024-12-18T194447Z-b9c3be5
         ports:
         - containerPort: 6900
         env:
