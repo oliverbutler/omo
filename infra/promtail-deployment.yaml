@@ -22,6 +22,13 @@ data:
         - role: pod
       pipeline_stages:
         - docker: {}
+        - json:
+            expressions:
+              trace_id: trace_id
+              span_id: span_id
+        - labels:
+            trace_id:
+            span_id:
       relabel_configs:
         - source_labels:
             - __meta_kubernetes_pod_node_name
@@ -53,6 +60,9 @@ data:
             - __meta_kubernetes_pod_uid
             - __meta_kubernetes_pod_container_name
           target_label: __path__
+        - action: replace
+          replacement: omo
+          target_label: app
 ---
 apiVersion: apps/v1
 kind: DaemonSet
