@@ -1,14 +1,19 @@
 package lib
 
 import (
+	"context"
+	"log/slog"
 	"oliverbutler/lib/blog"
 	"oliverbutler/lib/database"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/logging"
 	"oliverbutler/lib/mapping"
 	"oliverbutler/lib/photos"
 	"oliverbutler/lib/storage"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/users"
 	"oliverbutler/lib/workflow"
+	"os"
 )
 
 type App struct {
@@ -24,11 +29,15 @@ type App struct {
 
 // Single place services are instantiated, and environment variables are read and passed to the services.
 // Gives a birds eye view of module dependencies, both internal and external.
-func NewApp() (*App, error) {
+func NewApp(ctx context.Context) (*App, error) {
+	logging.OmoLogger = logging.NewOmoLogger(slog.NewJSONHandler(os.Stdout, nil))
+
 	env, err := environment.NewEnvironmentService()
 	if err != nil {
 		return nil, err
 	}
+
+	err = tracing.InitTracing(ctx, env)
 
 	db, err := database.NewDatabaseService(env)
 	if err != nil {
