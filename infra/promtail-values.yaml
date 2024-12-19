@@ -12,10 +12,10 @@ config:
             regex: __meta_kubernetes_pod_label_(.+)
           - source_labels:
               - __meta_kubernetes_namespace
-            target_label: kubernetes_namespace
+            target_label: namespace
           - source_labels:
               - __meta_kubernetes_pod_name
-            target_label: kubernetes_pod_name
+            target_label: pod
           - replacement: /var/log/pods/*$1/*.log
             separator: /
             source_labels:
@@ -34,8 +34,8 @@ rbac:
   create: true
   pspEnabled: false
 
-# Add these sections
 securityContext:
+  privileged: true
   runAsUser: 0
   runAsGroup: 0
 
@@ -43,13 +43,13 @@ extraVolumes:
   - name: varlog
     hostPath:
       path: /var/log
-  - name: varlibdockercontainers
+  - name: varlibcontainers
     hostPath:
-      path: /var/lib/docker/containers
+      path: /var/lib/rancher/k3s/agent/containerd/io.containerd.runtime.v2.task/k8s.io
 
 extraVolumeMounts:
   - name: varlog
     mountPath: /var/log
-  - name: varlibdockercontainers
-    mountPath: /var/lib/docker/containers
+  - name: varlibcontainers
+    mountPath: /var/lib/rancher/k3s/agent/containerd/io.containerd.runtime.v2.task/k8s.io
     readOnly: true
