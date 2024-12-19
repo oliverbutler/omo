@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/utils"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 	"github.com/alecthomas/chroma/lexers"
 	"github.com/alecthomas/chroma/styles"
 	"github.com/gomarkdown/markdown"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/html"
 	"gopkg.in/yaml.v2"
 )
@@ -25,6 +28,9 @@ func NewBlogService() *BlogService {
 }
 
 func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "BlogService.GetAllPosts")
+	defer span.End()
+
 	blogDir := "./static/blog"
 	posts := []Post{}
 
@@ -35,7 +41,7 @@ func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
 
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			post, err := readPost(filepath.Join(blogDir, dir.Name()))
+			post, err := readPost(ctx, filepath.Join(blogDir, dir.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -53,8 +59,11 @@ func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
 }
 
 func (s *BlogService) GetPost(ctx context.Context, slug string) (Post, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "BlogService.GetPost")
+	defer span.End()
+
 	postDir := filepath.Join("./static/blog", slug)
-	return readPost(postDir)
+	return readPost(ctx, postDir)
 }
 
 func (s *BlogService) GetChromaCSS() string {
@@ -70,12 +79,17 @@ type Post struct {
 	Content     string
 }
 
-func readPost(postDir string) (Post, error) {
+func readPost(ctx context.Context, postDir string) (Post, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "readPost", trace.WithAttributes(attribute.String("postDir", postDir)))
+	defer span.End()
+
 	mdFile := filepath.Join(postDir, "post.md")
 	content, err := os.ReadFile(mdFile)
 	if err != nil {
 		return Post{}, err
 	}
+
+	span.AddEvent("Read file content")
 
 	parts := strings.SplitN(string(content), "---", 3)
 	if len(parts) != 3 {
@@ -91,11 +105,15 @@ func readPost(postDir string) (Post, error) {
 	// Convert markdown to HTML
 	post.Content = string(markdown.ToHTML([]byte(parts[2]), nil, nil))
 
+	span.AddEvent("Convert markdown to HTML")
+
 	// Apply syntax highlighting to code blocks
 	post.Content, err = highlightCodeBlocks(post.Content)
 	if err != nil {
 		return Post{}, err
 	}
+
+	span.AddEvent("Highlight code blocks")
 
 	// Handle relative paths for heroImage
 	post.HeroImage = "/" + postDir + "/" + post.HeroImage[2:]

@@ -1,10 +1,12 @@
 package users
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/utils"
 	"time"
 )
@@ -34,7 +36,10 @@ func (s *GitHubService) GetOAuthAuthorizationUrl() string {
 	return "https://github.com/login/oauth/authorize?client_id=" + s.env.GetGithubClientId() + "&redirect_uri=" + redirectUri + "&scope=user:email"
 }
 
-func (s *GitHubService) ExchangeOAuthCodeForAccessToken(code string) (*TokenResponse, error) {
+func (s *GitHubService) ExchangeOAuthCodeForAccessToken(ctx context.Context, code string) (*TokenResponse, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "GitHub.ExchangeOAuthCodeForAccessToken")
+	defer span.End()
+
 	slog.Info("Exchanging code for access token", "code", code)
 
 	data := map[string]string{
@@ -67,7 +72,10 @@ func (s *GitHubService) ExchangeOAuthCodeForAccessToken(code string) (*TokenResp
 	return tokenResponse, nil
 }
 
-func (s *GitHubService) GetGitHubUser(accessToken string) (GitHubUser, error) {
+func (s *GitHubService) GetGitHubUser(ctx context.Context, accessToken string) (GitHubUser, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "GitHub.GetGitHubUser")
+	defer span.End()
+
 	headers := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 	}

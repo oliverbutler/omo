@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/logging"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,11 +27,11 @@ func NewDatabaseService(env *environment.EnvironmentService) (*DatabaseService, 
 
 	db, err := sql.Open("postgres", dbUrl)
 	if err != nil {
-		slog.Error("Failed to convert pgxpool to *sql.DB", "error", err)
+		logging.OmoLogger.Error("Failed to convert pgxpool to *sql.DB", "error", err)
 		return nil, err
 	}
 
-	slog.Info(fmt.Sprintf("Connected to database: %s at %s:%s", env.GetDbName(), env.GetDbHost(), env.GetDbPort()))
+	logging.OmoLogger.Info(fmt.Sprintf("Connected to database: %s at %s:%s", env.GetDbName(), env.GetDbHost(), env.GetDbPort()))
 
 	gooseProvider, err := goose.NewProvider(goose.DialectPostgres, db, os.DirFS("./migrations"))
 

@@ -3,6 +3,7 @@ package pages
 import (
 	"oliverbutler/components"
 	"oliverbutler/lib"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/users"
 
 	g "github.com/maragudk/gomponents"
@@ -11,6 +12,9 @@ import (
 )
 
 func Index(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
+	ctx, span := tracing.Tracer.Start(ctx, "Pages.Index")
+	defer span.End()
+
 	posts, err := app.Blog.GetAllPosts(ctx)
 	if err != nil {
 		return components.Page(Div(

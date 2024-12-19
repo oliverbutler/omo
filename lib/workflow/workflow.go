@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/logging"
 
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
@@ -18,6 +19,7 @@ type WorkflowService struct {
 func NewWorkflowService(environment *environment.EnvironmentService) (*WorkflowService, error) {
 	c, err := client.Dial(client.Options{
 		HostPort: environment.GetTemporalHost(),
+		Logger:   logging.OmoLogger,
 	})
 	if err != nil {
 		slog.Error("Unable to create client", "error", err)

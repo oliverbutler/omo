@@ -1,12 +1,14 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"oliverbutler/lib/database"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/utils"
 	"strings"
 	"time"
@@ -85,41 +87,41 @@ func (s *UserService) GetByEmail(email string) (*User, error) {
 	return s.repo.GetByEmail(email)
 }
 
-func (s *UserService) HandleGithubAuthCallback(code string) (*UserSessionResponse, error) {
-	slog.Info("Starting to call HandleGithubAuthCallback")
+func (s *UserService) HandleGithubAuthCallback(ctx context.Context, code string) (*UserSessionResponse, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "UserService.HandleGithubAuthCallback")
+	defer span.End()
 
-	tokenResponse, err := s.github.ExchangeOAuthCodeForAccessToken(code)
+	tokenResponse, err := s.github.ExchangeOAuthCodeForAccessToken(ctx, code)
 	if err != nil {
 		slog.Error("ExchangeOAuthCodeForAccessToken failed", "error", err)
 		return nil, err
 	}
-	slog.Info("ExchangeOAuthCodeForAccessToken successful")
 
-	gitHubUser, err := s.github.GetGitHubUser(tokenResponse.AccessToken)
+	gitHubUser, err := s.github.GetGitHubUser(ctx, tokenResponse.AccessToken)
 	if err != nil {
 		slog.Error("GetGitHubUser failed", "error", err)
 		return nil, err
 	}
-	slog.Info("GetGitHubUser successful")
 
-	user, err := s.UpsertUserFromGitHub(gitHubUser, tokenResponse.AccessToken)
+	user, err := s.UpsertUserFromGitHub(ctx, gitHubUser, tokenResponse.AccessToken)
 	if err != nil {
 		slog.Error("UpsertUserFromGitHub failed", "error", err)
 		return nil, err
 	}
-	slog.Info("UpsertUserFromGitHub successful")
 
-	userSession, err := s.CreateUserSession(user)
+	userSession, err := s.CreateUserSession(ctx, user)
 	if err != nil {
 		slog.Error("CreateUserSession failed", "error", err)
 		return nil, err
 	}
-	slog.Info("CreateUserSession successful")
 
 	return userSession, nil
 }
 
-func (s *UserService) UpsertUserFromGitHub(gitHubUser GitHubUser, gitHubAccessToken string) (*User, error) {
+func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHubUser, gitHubAccessToken string) (*User, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "UserService.UpsertUserFromGitHub")
+	defer span.End()
+
 	user, err := s.GetByEmail(gitHubUser.Email)
 	if err != nil {
 		if errors.Is(err, utils.RowNotFound) {
@@ -216,7 +218,10 @@ func (s *UserService) RefreshUserSession(refresh RefreshTokenRequest) (*UserSess
 	}, nil
 }
 
-func (s *UserService) CreateUserSession(user *User) (*UserSessionResponse, error) {
+func (s *UserService) CreateUserSession(ctx context.Context, user *User) (*UserSessionResponse, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "UserService.CreateUserSession")
+	defer span.End()
+
 	tokens, err := CreateAccessAndRefreshToken(user)
 
 	familyId := cuid.New()
@@ -305,7 +310,10 @@ func (s *UserService) ExtractUserClaimsFromCookies(w http.ResponseWriter, r *htt
 	return claims, nil
 }
 
-func (s *UserService) ExtractUserFromCookies(w http.ResponseWriter, r *http.Request) (*UserContext, error) {
+func (s *UserService) ExtractUserFromCookies(ctx context.Context, w http.ResponseWriter, r *http.Request) (*UserContext, error) {
+	_, span := tracing.Tracer.Start(ctx, "UserService.ExtractUserFromCookies")
+	defer span.End()
+
 	claims, err := s.ExtractUserClaimsFromCookies(w, r)
 	if err != nil {
 		return &UserContext{IsLoggedIn: false, User: nil}, fmt.Errorf("failed to extract user claims: %v", err)

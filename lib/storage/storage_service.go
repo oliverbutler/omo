@@ -4,8 +4,12 @@ import (
 	"context"
 	"io"
 	"oliverbutler/lib/environment"
+	"oliverbutler/lib/tracing"
 	"os"
 	"path/filepath"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // FileItem represents a file in the storage system
@@ -78,6 +82,9 @@ func (l *LocalStorageRepo) PutItem(ctx context.Context, bucket, folder string, n
 
 // GetItem retrieves metadata for an item
 func (l *LocalStorageRepo) GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "GetItem", trace.WithAttributes(attribute.String("bucket", bucket), attribute.String("folder", folder), attribute.String("name", name)), trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
 	rootStoragePath := l.env.GetRootStoragePath()
 
 	fullPath := filepath.Join(rootStoragePath, bucket, folder, name)

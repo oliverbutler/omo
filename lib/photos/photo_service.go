@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"oliverbutler/lib/database"
 	"oliverbutler/lib/storage"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/workflow"
 	"strings"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	temporalWorkflow "go.temporal.io/sdk/workflow"
-	// "golang.org/x/exp/rand"
 )
 
 type PhotoService struct {
@@ -60,6 +60,9 @@ type Photo struct {
 }
 
 func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *http.Request) error {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.UploadPhotosAndStartWorkflows")
+	defer span.End()
+
 	slog.Info("Starting upload photos")
 
 	err := r.ParseMultipartForm(100 << 20) // 100 MB limit
@@ -148,6 +151,9 @@ type GeneratePreviewActivityParams struct {
 }
 
 func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params GeneratePreviewActivityParams) error {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GeneratePreviewActivity")
+	defer span.End()
+
 	logger := activity.GetLogger(ctx)
 
 	logger.Info("Generating preview for photo", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
@@ -183,18 +189,13 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 
 	logger.Info("Preview generated successfully", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
 
-	// /// NOTE: This is test code, introduce a "error" here 33% of the time
-	// if rand.Intn(3) == 0 {
-	//
-	// 	time.Sleep(20 * time.Second)
-	//
-	// 	return fmt.Errorf("Oh no, something went wrong")
-	// }
-
 	return nil
 }
 
 func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, photoId string) (*PhotoMetaData, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GenerateBlurHashAndMetadataActivity")
+	defer span.End()
+
 	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, "original.jpg")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get original photo: %w", err)
@@ -246,6 +247,9 @@ type PhotoMetaData struct {
 }
 
 func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) error {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.WritePhotoToDBActivity")
+	defer span.End()
+
 	err := s.insertPhoto(ctx, &photo)
 	if err != nil {
 		return fmt.Errorf("failed to insert photo into database: %w", err)
@@ -255,6 +259,9 @@ func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) 
 }
 
 func (s *PhotoService) storeOriginalImage(ctx context.Context, fileHeader *multipart.FileHeader) (*string, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.storeOriginalImage")
+	defer span.End()
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -281,10 +288,15 @@ func (s *PhotoService) storeOriginalImage(ctx context.Context, fileHeader *multi
 }
 
 func (s *PhotoService) GetPhoto(ctx context.Context, id string) (*Photo, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhoto")
+	defer span.End()
 	return s.getPhoto(ctx, id)
 }
 
 func (s *PhotoService) GetPhotoBuffer(ctx context.Context, id string, quality string) (io.ReadCloser, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhotoBuffer")
+	defer span.End()
+
 	filename := quality + ".jpg"
 	item, err := s.storage.StorageRepo.GetItem(ctx, "photos", id, filename)
 	if err != nil {
@@ -295,6 +307,9 @@ func (s *PhotoService) GetPhotoBuffer(ctx context.Context, id string, quality st
 }
 
 func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.DeletePhoto")
+	defer span.End()
+
 	slog.Info("Deleting photo", "id", id)
 
 	// Get all photos
@@ -338,6 +353,9 @@ func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 }
 
 func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.Buffer, error) {
+	_, span := tracing.Tracer.Start(context.Background(), "PhotoService.generateResizedImage")
+	defer span.End()
+
 	start := time.Now()
 	defer func() {
 		slog.Info("Image resizing time", "width", width, "duration", time.Since(start))
@@ -356,6 +374,9 @@ func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.
 }
 
 func (s *PhotoService) GetPhotos(ctx context.Context) ([]Photo, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhotos")
+	defer span.End()
+
 	slog.Info("Fetching photos from database")
 	photos, err := s.getAllPhotos(ctx)
 	if err != nil {
@@ -365,6 +386,9 @@ func (s *PhotoService) GetPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 func (s *PhotoService) insertPhoto(ctx context.Context, photo *Photo) error {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.insertPhoto")
+	defer span.End()
+
 	slog.Info("Inserting photo into database", "id", photo.ID)
 	query := `
 		INSERT INTO photos (id, name, blur_hash, width, height, created_at, updated_at)
@@ -375,6 +399,9 @@ func (s *PhotoService) insertPhoto(ctx context.Context, photo *Photo) error {
 }
 
 func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.getAllPhotos")
+	defer span.End()
+
 	query := `
 		SELECT id, name, blur_hash, width, height, created_at, updated_at
 		FROM photos
@@ -398,6 +425,9 @@ func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 func (s *PhotoService) getPhoto(ctx context.Context, id string) (*Photo, error) {
+	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.getPhoto")
+	defer span.End()
+
 	query := `
     SELECT id, name, blur_hash, width, height, created_at, updated_at
     FROM photos
