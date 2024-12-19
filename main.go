@@ -378,6 +378,10 @@ func main() {
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	host := "0.0.0.0"
 
 	if app.Environment.GetEnv() == environment.Local {

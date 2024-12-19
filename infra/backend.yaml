@@ -57,13 +57,13 @@ spec:
           mountPath: /mnt/storage
         readinessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 6900
           initialDelaySeconds: 10
           periodSeconds: 5
         livenessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 6900
           initialDelaySeconds: 15
           periodSeconds: 10
