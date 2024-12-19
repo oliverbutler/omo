@@ -45,13 +45,29 @@ data:
             target_label: __path__
             replacement: /var/log/pods/*$1/*.log
         pipeline_stages:
+          - cri: {}
           - json:
               expressions:
+                time: time
+                level: level
+                msg: msg
+                method: method
+                url: url
+                status: status
+                responseSize: responseSize
+                duration: duration
                 trace_id: trace_id
                 span_id: span_id
+          - timestamp:
+              source: time
+              format: RFC3339Nano
           - labels:
               trace_id:
               span_id:
+              level:
+              method:
+              url:
+              status:
 ---
 apiVersion: apps/v1
 kind: DaemonSet
