@@ -46,11 +46,10 @@ jobs:
 
       - name: Commit and push changes 📝
         run: |
-          git config --global user.email "omo@oliverbutler.uk"
-          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions Bot"
           git add infra/backend.yaml
-          git commit -m "Bump deployment image to ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}"
+          git commit -m "ci: update omo image to ${{ steps.generate_tag.outputs.image_tag }}"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
