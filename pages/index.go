@@ -40,5 +40,6 @@ func Index(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 		Div(Class("max-w-4xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-cols-1 gap-4"),
 			g.Group(blogTiles),
 		),
+		components.PageFooter(ctx, app),
 	))
 }

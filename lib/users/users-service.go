@@ -330,3 +330,7 @@ func (s *UserService) ExtractUserFromCookies(ctx context.Context, w http.Respons
 func (s *UserService) GetOAuthAuthorizationUrl() string {
 	return s.github.GetOAuthAuthorizationUrl()
 }
+
+func (s *UserService) IncrementVisitorCount(ctx context.Context) (int, error) {
+	return s.repo.IncrementVisitorCount(ctx)
+}

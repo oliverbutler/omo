@@ -47,9 +47,13 @@ func main() {
 
 	r.Use(middleware.Recoverer, tracing.NewOpenTelemetryMiddleware(logging.OmoLogger))
 
-	r.Handle("/static/*", http.StripPrefix("/static/", handler))
-
 	InitDevReloadWebsocket(r)
+
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/favicon.ico")
+	})
+
+	r.Handle("/static/*", http.StripPrefix("/static/", handler))
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		logging.OmoLogger.InfoContext(r.Context(), "User visiting home page")

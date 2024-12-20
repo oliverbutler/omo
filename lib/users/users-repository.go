@@ -21,6 +21,7 @@ type UserRepository interface {
 	InvalidateUserSessionsByFamilyId(ctx context.Context, familyId string) error
 	InvalidateUserSessionById(ctx context.Context, id string) error
 	CreateSession(ctx context.Context, csession UserSession) (*UserSession, error)
+	IncrementVisitorCount(ctx context.Context) (int, error)
 }
 
 type PgUserRepository struct {
@@ -197,6 +198,20 @@ func (r *PgUserRepository) CreateSession(ctx context.Context, session UserSessio
 	}
 
 	return &newSession, nil
+}
+
+func (r *PgUserRepository) IncrementVisitorCount(ctx context.Context) (int, error) {
+	var count int
+	row := r.db.QueryRow(
+		ctx,
+		"UPDATE visits SET visits = visits + 1 WHERE page = 'home' RETURNING visits",
+	)
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func scanUser(row pgx.Row) (User, error) {

@@ -128,6 +128,12 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 			start := time.Now()
 			ctx := r.Context()
 
+			// if hitting /ws skip this and just call the next handler
+			if r.URL.Path == "/ws" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Extract tracing information from the incoming request
 			ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(r.Header))
 

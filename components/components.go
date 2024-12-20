@@ -1,7 +1,9 @@
 package components
 
 import (
+	"context"
 	"oliverbutler/lib"
+	"oliverbutler/lib/logging"
 	"oliverbutler/lib/users"
 	"os"
 	"strconv"
@@ -16,11 +18,19 @@ const (
 	ButtonStyle = "p-2 px-3 bg-gray-900/70 hover:bg-gray-800 rounded-md transition-all"
 )
 
-func PageFooter() g.Node {
-	return Footer(Class("prose-sm text-gray-500 mt-12"),
+func PageFooter(ctx context.Context, app *lib.App) g.Node {
+	visits, err := app.Users.IncrementVisitorCount(ctx)
+	if err != nil {
+		logging.OmoLogger.ErrorContext(ctx, "Error incrementing visitor count", err)
+		visits = 0
+	}
+
+	return Footer(Class("flex max-w-4xl mx-auto text-gray-500 mt-12"),
 		P(
 			g.Textf("© Oliver Butler "+strconv.Itoa(
 				time.Now().Year())),
+			g.Textf(" Generated at %s", time.Now().Format("2006-01-02 15:04:05")),
+			g.Textf(" | %d visits", visits),
 		),
 	)
 }
