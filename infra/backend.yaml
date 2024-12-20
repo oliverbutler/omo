@@ -20,7 +20,7 @@ spec:
           type: DirectoryOrCreate
       containers:
       - name: backend
-        image: ghcr.io/oliverbutler/omo:2024-12-20T091254Z-4c8eddd
+        image: ghcr.io/oliverbutler/omo:2024-12-20T111157Z-428c30e
         ports:
         - containerPort: 6900
         env:
