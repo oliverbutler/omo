@@ -7,11 +7,13 @@ import (
 	"log/slog"
 	"oliverbutler/lib/environment"
 	"oliverbutler/lib/logging"
+	"oliverbutler/lib/tracing"
 	"os"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose/v3"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 type DatabaseService struct {
@@ -26,7 +28,10 @@ func NewDatabaseService(ctx context.Context, env *environment.EnvironmentService
 		return nil, fmt.Errorf("create connection pool: %w", err)
 	}
 
-	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithIncludeQueryParameters())
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithIncludeQueryParameters(), otelpgx.WithAttributes(
+		semconv.DBSystemPostgreSQL,
+		semconv.ServiceName("pg"),
+	), otelpgx.WithTracerProvider(tracing.DBTraceProvider))
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

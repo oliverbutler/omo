@@ -60,7 +60,7 @@ type Photo struct {
 }
 
 func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *http.Request) error {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.UploadPhotosAndStartWorkflows")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.UploadPhotosAndStartWorkflows")
 	defer span.End()
 
 	slog.Info("Starting upload photos")
@@ -151,7 +151,7 @@ type GeneratePreviewActivityParams struct {
 }
 
 func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params GeneratePreviewActivityParams) error {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GeneratePreviewActivity")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GeneratePreviewActivity")
 	defer span.End()
 
 	logger := activity.GetLogger(ctx)
@@ -193,7 +193,7 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 }
 
 func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, photoId string) (*PhotoMetaData, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GenerateBlurHashAndMetadataActivity")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GenerateBlurHashAndMetadataActivity")
 	defer span.End()
 
 	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, "original.jpg")
@@ -247,7 +247,7 @@ type PhotoMetaData struct {
 }
 
 func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) error {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.WritePhotoToDBActivity")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.WritePhotoToDBActivity")
 	defer span.End()
 
 	err := s.insertPhoto(ctx, &photo)
@@ -259,7 +259,7 @@ func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) 
 }
 
 func (s *PhotoService) storeOriginalImage(ctx context.Context, fileHeader *multipart.FileHeader) (*string, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.storeOriginalImage")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.storeOriginalImage")
 	defer span.End()
 
 	file, err := fileHeader.Open()
@@ -288,13 +288,13 @@ func (s *PhotoService) storeOriginalImage(ctx context.Context, fileHeader *multi
 }
 
 func (s *PhotoService) GetPhoto(ctx context.Context, id string) (*Photo, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhoto")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GetPhoto")
 	defer span.End()
 	return s.getPhoto(ctx, id)
 }
 
 func (s *PhotoService) GetPhotoBuffer(ctx context.Context, id string, quality string) (io.ReadCloser, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhotoBuffer")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GetPhotoBuffer")
 	defer span.End()
 
 	filename := quality + ".jpg"
@@ -307,7 +307,7 @@ func (s *PhotoService) GetPhotoBuffer(ctx context.Context, id string, quality st
 }
 
 func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.DeletePhoto")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.DeletePhoto")
 	defer span.End()
 
 	slog.Info("Deleting photo", "id", id)
@@ -353,7 +353,7 @@ func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 }
 
 func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.Buffer, error) {
-	_, span := tracing.Tracer.Start(context.Background(), "PhotoService.generateResizedImage")
+	_, span := tracing.OmoTracer.Start(context.Background(), "PhotoService.generateResizedImage")
 	defer span.End()
 
 	start := time.Now()
@@ -374,7 +374,7 @@ func (s *PhotoService) generateResizedImage(src image.Image, width int) (*bytes.
 }
 
 func (s *PhotoService) GetPhotos(ctx context.Context) ([]Photo, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.GetPhotos")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GetPhotos")
 	defer span.End()
 
 	slog.Info("Fetching photos from database")
@@ -386,7 +386,7 @@ func (s *PhotoService) GetPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 func (s *PhotoService) insertPhoto(ctx context.Context, photo *Photo) error {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.insertPhoto")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.insertPhoto")
 	defer span.End()
 
 	slog.Info("Inserting photo into database", "id", photo.ID)
@@ -399,7 +399,7 @@ func (s *PhotoService) insertPhoto(ctx context.Context, photo *Photo) error {
 }
 
 func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.getAllPhotos")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.getAllPhotos")
 	defer span.End()
 
 	query := `
@@ -425,7 +425,7 @@ func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 func (s *PhotoService) getPhoto(ctx context.Context, id string) (*Photo, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "PhotoService.getPhoto")
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.getPhoto")
 	defer span.End()
 
 	query := `

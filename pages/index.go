@@ -12,7 +12,7 @@ import (
 )
 
 func Index(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
-	ctx, span := tracing.Tracer.Start(ctx, "Pages.Index")
+	ctx, span := tracing.OmoTracer.Start(ctx, "Pages.Index")
 	defer span.End()
 
 	posts, err := app.Blog.GetAllPosts(ctx)

@@ -88,7 +88,7 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, erro
 }
 
 func (s *UserService) HandleGithubAuthCallback(ctx context.Context, code string) (*UserSessionResponse, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "UserService.HandleGithubAuthCallback")
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.HandleGithubAuthCallback")
 	defer span.End()
 
 	tokenResponse, err := s.github.ExchangeOAuthCodeForAccessToken(ctx, code)
@@ -119,7 +119,7 @@ func (s *UserService) HandleGithubAuthCallback(ctx context.Context, code string)
 }
 
 func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHubUser, gitHubAccessToken string) (*User, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "UserService.UpsertUserFromGitHub")
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.UpsertUserFromGitHub")
 	defer span.End()
 
 	user, err := s.GetByEmail(ctx, gitHubUser.Email)
@@ -219,7 +219,7 @@ func (s *UserService) RefreshUserSession(ctx context.Context, refresh RefreshTok
 }
 
 func (s *UserService) CreateUserSession(ctx context.Context, user *User) (*UserSessionResponse, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "UserService.CreateUserSession")
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.CreateUserSession")
 	defer span.End()
 
 	tokens, err := CreateAccessAndRefreshToken(user)
@@ -311,7 +311,7 @@ func (s *UserService) ExtractUserClaimsFromCookies(ctx context.Context, w http.R
 }
 
 func (s *UserService) ExtractUserFromCookies(ctx context.Context, w http.ResponseWriter, r *http.Request) (*UserContext, error) {
-	_, span := tracing.Tracer.Start(ctx, "UserService.ExtractUserFromCookies")
+	_, span := tracing.OmoTracer.Start(ctx, "UserService.ExtractUserFromCookies")
 	defer span.End()
 
 	claims, err := s.ExtractUserClaimsFromCookies(ctx, w, r)

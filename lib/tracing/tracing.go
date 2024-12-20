@@ -22,8 +22,10 @@ import (
 )
 
 var (
-	Tracer trace.Tracer
-	tp     *sdktrace.TracerProvider
+	OmoTracer        trace.Tracer
+	OmoTraceProvider *sdktrace.TracerProvider
+	DBTracer         trace.Tracer
+	DBTraceProvider  *sdktrace.TracerProvider
 )
 
 func GetSpanFromContext(ctx context.Context) trace.Span {
@@ -40,13 +42,13 @@ func newOTLPExporter(ctx context.Context) (oteltrace.SpanExporter, error) {
 	return otlptracehttp.New(ctx, insecureOpt, endpointOpt)
 }
 
-func newTraceProvider(env *environment.EnvironmentService, exp sdktrace.SpanExporter) *sdktrace.TracerProvider {
+func newTraceProvider(name string, env *environment.EnvironmentService, exp sdktrace.SpanExporter) *sdktrace.TracerProvider {
 	// Ensure default SDK resources and the required service name are set.
 	r, err := resource.Merge(
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("omo"),
+			semconv.ServiceName(name),
 			semconv.DeploymentEnvironment(env.GetEnv().String()),
 		),
 	)
@@ -79,17 +81,20 @@ func InitTracing(ctx context.Context, env *environment.EnvironmentService) error
 		return err
 	}
 
-	tp = newTraceProvider(env, exp)
+	OmoTraceProvider = newTraceProvider("omo", env, exp)
+	otel.SetTracerProvider(OmoTraceProvider)
+	OmoTracer = OmoTraceProvider.Tracer("omo")
 
-	otel.SetTracerProvider(tp)
-
-	Tracer = tp.Tracer("omo")
+	DBTraceProvider = newTraceProvider("omo-db", env, exp)
+	otel.SetTracerProvider(DBTraceProvider)
+	DBTracer = DBTraceProvider.Tracer("omodb")
 
 	return nil
 }
 
 func Teardown() {
-	_ = tp.Shutdown(context.Background())
+	_ = OmoTraceProvider.Shutdown(context.Background())
+	_ = DBTraceProvider.Shutdown(context.Background())
 }
 
 // https://github.com/go-chi/chi/issues/270#issuecomment-479184559
@@ -129,7 +134,7 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 			name := fmt.Sprintf("%s %s", r.Method, getRoutePattern(r))
 
 			// Start a new span
-			ctx, span := Tracer.Start(ctx, name, trace.WithAttributes(
+			ctx, span := OmoTracer.Start(ctx, name, trace.WithAttributes(
 				attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
 				semconv.HTTPRoute(r.URL.Path),
 			))

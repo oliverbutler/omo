@@ -82,7 +82,7 @@ func (l *LocalStorageRepo) PutItem(ctx context.Context, bucket, folder string, n
 
 // GetItem retrieves metadata for an item
 func (l *LocalStorageRepo) GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "GetItem", trace.WithAttributes(attribute.String("bucket", bucket), attribute.String("folder", folder), attribute.String("name", name)), trace.WithSpanKind(trace.SpanKindClient))
+	ctx, span := tracing.OmoTracer.Start(ctx, "GetItem", trace.WithAttributes(attribute.String("bucket", bucket), attribute.String("folder", folder), attribute.String("name", name)), trace.WithSpanKind(trace.SpanKindClient))
 	defer span.End()
 
 	rootStoragePath := l.env.GetRootStoragePath()

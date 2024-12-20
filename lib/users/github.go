@@ -37,7 +37,7 @@ func (s *GitHubService) GetOAuthAuthorizationUrl() string {
 }
 
 func (s *GitHubService) ExchangeOAuthCodeForAccessToken(ctx context.Context, code string) (*TokenResponse, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "GitHub.ExchangeOAuthCodeForAccessToken")
+	ctx, span := tracing.OmoTracer.Start(ctx, "GitHub.ExchangeOAuthCodeForAccessToken")
 	defer span.End()
 
 	slog.Info("Exchanging code for access token", "code", code)
@@ -73,7 +73,7 @@ func (s *GitHubService) ExchangeOAuthCodeForAccessToken(ctx context.Context, cod
 }
 
 func (s *GitHubService) GetGitHubUser(ctx context.Context, accessToken string) (GitHubUser, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "GitHub.GetGitHubUser")
+	ctx, span := tracing.OmoTracer.Start(ctx, "GitHub.GetGitHubUser")
 	defer span.End()
 
 	headers := map[string]string{

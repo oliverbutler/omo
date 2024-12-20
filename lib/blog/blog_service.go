@@ -28,7 +28,7 @@ func NewBlogService() *BlogService {
 }
 
 func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "BlogService.GetAllPosts")
+	ctx, span := tracing.OmoTracer.Start(ctx, "BlogService.GetAllPosts")
 	defer span.End()
 
 	blogDir := "./static/blog"
@@ -59,7 +59,7 @@ func (s *BlogService) GetAllPosts(ctx context.Context) ([]Post, error) {
 }
 
 func (s *BlogService) GetPost(ctx context.Context, slug string) (Post, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "BlogService.GetPost")
+	ctx, span := tracing.OmoTracer.Start(ctx, "BlogService.GetPost")
 	defer span.End()
 
 	postDir := filepath.Join("./static/blog", slug)
@@ -80,7 +80,7 @@ type Post struct {
 }
 
 func readPost(ctx context.Context, postDir string) (Post, error) {
-	ctx, span := tracing.Tracer.Start(ctx, "readPost", trace.WithAttributes(attribute.String("postDir", postDir)))
+	ctx, span := tracing.OmoTracer.Start(ctx, "readPost", trace.WithAttributes(attribute.String("postDir", postDir)))
 	defer span.End()
 
 	mdFile := filepath.Join(postDir, "post.md")
