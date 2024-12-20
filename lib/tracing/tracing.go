@@ -8,6 +8,7 @@ import (
 	"oliverbutler/lib/environment"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -87,6 +88,31 @@ func Teardown() {
 	_ = tp.Shutdown(context.Background())
 }
 
+// https://github.com/go-chi/chi/issues/270#issuecomment-479184559
+func getRoutePattern(r *http.Request) string {
+	rctx := chi.RouteContext(r.Context())
+	if pattern := rctx.RoutePattern(); pattern != "" {
+		// Pattern is already available
+		return pattern
+	}
+
+	routePath := r.URL.Path
+	if r.URL.RawPath != "" {
+		routePath = r.URL.RawPath
+	}
+
+	tctx := chi.NewRouteContext()
+	if !rctx.Routes.Match(tctx, r.Method, routePath) {
+		// No matching pattern, so just return the request path.
+		// Depending on your use case, it might make sense to
+		// return an empty string or error here instead
+		return routePath
+	}
+
+	// tctx has the updated pattern, since Match mutates it
+	return tctx.RoutePattern()
+}
+
 func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +122,7 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 			// Extract tracing information from the incoming request
 			ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(r.Header))
 
-			name := fmt.Sprintf("%s %s", r.Method, r.URL.String())
+			name := fmt.Sprintf("%s %s", r.Method, getRoutePattern(r))
 
 			// Start a new span
 			ctx, span := Tracer.Start(ctx, name, trace.WithAttributes(
@@ -116,7 +142,7 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 
 			// Log after the request finishes
 			duration := time.Since(start)
-			logger.InfoContext(ctx, "Request completed",
+			logger.InfoContext(ctx, fmt.Sprintf("Responded to %s", name),
 				slog.String("method", r.Method),
 				slog.String("url", r.URL.String()),
 				slog.Int("status", rw.statusCode),
