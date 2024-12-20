@@ -10,6 +10,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -123,9 +124,16 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 				slog.Duration("duration", duration),
 			)
 
+			if rw.statusCode >= 400 {
+				span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", rw.statusCode))
+			} else {
+				span.SetStatus(codes.Ok, "")
+			}
+
 			span.SetAttributes(
 				semconv.HTTPResponseStatusCode(rw.statusCode),
 				semconv.HTTPResponseSize(rw.size),
+				semconv.HTTPRoute(r.URL.Path),
 			)
 		})
 	}
