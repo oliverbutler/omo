@@ -9,6 +9,7 @@ import (
 	"oliverbutler/lib/logging"
 	"os"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose/v3"
 )
@@ -17,10 +18,17 @@ type DatabaseService struct {
 	Pool *pgxpool.Pool
 }
 
-func NewDatabaseService(env *environment.EnvironmentService) (*DatabaseService, error) {
+func NewDatabaseService(ctx context.Context, env *environment.EnvironmentService) (*DatabaseService, error) {
 	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", env.GetDbUser(), env.GetDbPassword(), env.GetDbHost(), env.GetDbPort(), env.GetDbName())
 
-	pool, err := pgxpool.New(context.Background(), dbUrl)
+	cfg, err := pgxpool.ParseConfig(dbUrl)
+	if err != nil {
+		return nil, fmt.Errorf("create connection pool: %w", err)
+	}
+
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithIncludeQueryParameters())
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		slog.Error("Failed to connect to database", "error", err)
 	}

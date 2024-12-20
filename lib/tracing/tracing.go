@@ -26,6 +26,10 @@ var (
 	tp     *sdktrace.TracerProvider
 )
 
+func GetSpanFromContext(ctx context.Context) trace.Span {
+	return trace.SpanFromContext(ctx)
+}
+
 func newOTLPExporter(ctx context.Context) (oteltrace.SpanExporter, error) {
 	// Change default HTTPS -> HTTP
 	insecureOpt := otlptracehttp.WithInsecure()

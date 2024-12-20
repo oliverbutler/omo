@@ -39,7 +39,7 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	err = tracing.InitTracing(ctx, env)
 
-	db, err := database.NewDatabaseService(env)
+	db, err := database.NewDatabaseService(ctx, env)
 	if err != nil {
 		return nil, err
 	}

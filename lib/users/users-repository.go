@@ -13,14 +13,14 @@ import (
 )
 
 type UserRepository interface {
-	GetById(id string) (*User, error)
-	GetByEmail(email string) (*User, error)
-	CreateGitHubUser(user User, gitHubUserId int, gitHubAccessToken string) (*User, error)
-	GetUserSessionById(id string) (*UserSession, error)
-	GetLatestUserSessionByFamilyId(familyId string) (*UserSession, error)
-	InvalidateUserSessionsByFamilyId(familyId string) error
-	InvalidateUserSessionById(id string) error
-	CreateSession(session UserSession) (*UserSession, error)
+	GetById(ctx context.Context, id string) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	CreateGitHubUser(ctx context.Context, user User, gitHubUserId int, gitHubAccessToken string) (*User, error)
+	GetUserSessionById(ctx context.Context, id string) (*UserSession, error)
+	GetLatestUserSessionByFamilyId(ctx context.Context, familyId string) (*UserSession, error)
+	InvalidateUserSessionsByFamilyId(ctx context.Context, familyId string) error
+	InvalidateUserSessionById(ctx context.Context, id string) error
+	CreateSession(ctx context.Context, csession UserSession) (*UserSession, error)
 }
 
 type PgUserRepository struct {
@@ -31,9 +31,9 @@ func PgNewUserRepository(db *pgxpool.Pool) *PgUserRepository {
 	return &PgUserRepository{db: db}
 }
 
-func (r *PgUserRepository) GetById(id string) (*User, error) {
+func (r *PgUserRepository) GetById(ctx context.Context, id string) (*User, error) {
 	row := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		"SELECT * FROM users WHERE id = $1",
 		id,
 	)
@@ -48,9 +48,9 @@ func (r *PgUserRepository) GetById(id string) (*User, error) {
 	return &user, nil
 }
 
-func (r *PgUserRepository) GetByEmail(email string) (*User, error) {
+func (r *PgUserRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	row := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		"SELECT * FROM users WHERE email = $1",
 		email,
 	)
@@ -65,8 +65,8 @@ func (r *PgUserRepository) GetByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-func (r *PgUserRepository) CreateGitHubUser(user User, gitHubUserId int, gitHubAccessToken string) (*User, error) {
-	tx, err := r.db.BeginTx(context.Background(), pgx.TxOptions{})
+func (r *PgUserRepository) CreateGitHubUser(ctx context.Context, user User, gitHubUserId int, gitHubAccessToken string) (*User, error) {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		slog.Error("failed to begin transaction", err)
 		return nil, fmt.Errorf("failed to begin transaction")
@@ -77,10 +77,10 @@ func (r *PgUserRepository) CreateGitHubUser(user User, gitHubUserId int, gitHubA
 		if err != nil {
 			slog.Error("failed to rollback transaction", err)
 		}
-	}(tx, context.Background())
+	}(tx, ctx)
 
 	row := tx.QueryRow(
-		context.Background(),
+		ctx,
 		"INSERT INTO users (id, given_name, family_name, email, profile_picture_url) VALUES ($1, $2, $3, $4, $5) RETURNING *",
 		user.ID,
 		user.GivenName,
@@ -95,7 +95,7 @@ func (r *PgUserRepository) CreateGitHubUser(user User, gitHubUserId int, gitHubA
 		return nil, fmt.Errorf("failed to scan user")
 	}
 
-	_, err = tx.Exec(context.Background(),
+	_, err = tx.Exec(ctx,
 		"INSERT INTO github_connections (github_id, user_id, github_access_token) VALUES ($1, $2, $3) RETURNING *",
 		gitHubUserId,
 		user.ID,
@@ -106,7 +106,7 @@ func (r *PgUserRepository) CreateGitHubUser(user User, gitHubUserId int, gitHubA
 		return nil, fmt.Errorf("failed to insert github connection")
 	}
 
-	err = tx.Commit(context.Background())
+	err = tx.Commit(ctx)
 
 	slog.Info("Added new user from github", newUser)
 
@@ -118,9 +118,9 @@ func (r *PgUserRepository) CreateGitHubUser(user User, gitHubUserId int, gitHubA
 	return &newUser, nil
 }
 
-func (r *PgUserRepository) GetUserSessionById(id string) (*UserSession, error) {
+func (r *PgUserRepository) GetUserSessionById(ctx context.Context, id string) (*UserSession, error) {
 	row := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		"SELECT * FROM user_sessions WHERE id = $1",
 		id,
 	)
@@ -135,9 +135,9 @@ func (r *PgUserRepository) GetUserSessionById(id string) (*UserSession, error) {
 	return &session, nil
 }
 
-func (r *PgUserRepository) GetLatestUserSessionByFamilyId(familyId string) (*UserSession, error) {
+func (r *PgUserRepository) GetLatestUserSessionByFamilyId(ctx context.Context, familyId string) (*UserSession, error) {
 	row := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		"SELECT * FROM user_sessions WHERE family_id = $1 ORDER BY created_at DESC LIMIT 1",
 		familyId,
 	)
@@ -152,9 +152,9 @@ func (r *PgUserRepository) GetLatestUserSessionByFamilyId(familyId string) (*Use
 	return &session, nil
 }
 
-func (r *PgUserRepository) InvalidateUserSessionsByFamilyId(familyId string) error {
+func (r *PgUserRepository) InvalidateUserSessionsByFamilyId(ctx context.Context, familyId string) error {
 	_, err := r.db.Exec(
-		context.Background(),
+		ctx,
 		"UPDATE user_sessions SET invalidated_at = $1 WHERE family_id = $2",
 		time.Now(),
 		familyId,
@@ -166,9 +166,9 @@ func (r *PgUserRepository) InvalidateUserSessionsByFamilyId(familyId string) err
 	return nil
 }
 
-func (r *PgUserRepository) InvalidateUserSessionById(id string) error {
+func (r *PgUserRepository) InvalidateUserSessionById(ctx context.Context, id string) error {
 	_, err := r.db.Exec(
-		context.Background(),
+		ctx,
 		"UPDATE user_sessions SET invalidated_at = $1 WHERE id = $2",
 		time.Now(),
 		id,
@@ -180,9 +180,9 @@ func (r *PgUserRepository) InvalidateUserSessionById(id string) error {
 	return nil
 }
 
-func (r *PgUserRepository) CreateSession(session UserSession) (*UserSession, error) {
+func (r *PgUserRepository) CreateSession(ctx context.Context, session UserSession) (*UserSession, error) {
 	row := r.db.QueryRow(
-		context.Background(),
+		ctx,
 		"INSERT INTO user_sessions (id, user_id, refresh_token_hash, expires_at, family_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
 		session.ID,
 		session.UserID,

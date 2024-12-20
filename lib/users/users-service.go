@@ -79,12 +79,12 @@ type RefreshTokenRequest struct {
 	UserSessionId string `json:"userSessionId"`
 }
 
-func (s *UserService) GetById(id string) (*User, error) {
-	return s.repo.GetById(id)
+func (s *UserService) GetById(ctx context.Context, id string) (*User, error) {
+	return s.repo.GetById(ctx, id)
 }
 
-func (s *UserService) GetByEmail(email string) (*User, error) {
-	return s.repo.GetByEmail(email)
+func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, error) {
+	return s.repo.GetByEmail(ctx, email)
 }
 
 func (s *UserService) HandleGithubAuthCallback(ctx context.Context, code string) (*UserSessionResponse, error) {
@@ -122,7 +122,7 @@ func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHu
 	ctx, span := tracing.Tracer.Start(ctx, "UserService.UpsertUserFromGitHub")
 	defer span.End()
 
-	user, err := s.GetByEmail(gitHubUser.Email)
+	user, err := s.GetByEmail(ctx, gitHubUser.Email)
 	if err != nil {
 		if errors.Is(err, utils.RowNotFound) {
 			nameParts := strings.Split(gitHubUser.Name, " ")
@@ -131,7 +131,7 @@ func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHu
 
 			slog.Info("creating new user from github user", gitHubUser)
 
-			return s.repo.CreateGitHubUser(User{
+			return s.repo.CreateGitHubUser(ctx, User{
 				ID:                cuid.New(),
 				GivenName:         givenName,
 				FamilyName:        familyName,
@@ -148,8 +148,8 @@ func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHu
 	return user, nil
 }
 
-func (s *UserService) RefreshUserSession(refresh RefreshTokenRequest) (*UserSessionResponse, error) {
-	session, err := s.repo.GetUserSessionById(refresh.UserSessionId)
+func (s *UserService) RefreshUserSession(ctx context.Context, refresh RefreshTokenRequest) (*UserSessionResponse, error) {
+	session, err := s.repo.GetUserSessionById(ctx, refresh.UserSessionId)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +162,9 @@ func (s *UserService) RefreshUserSession(refresh RefreshTokenRequest) (*UserSess
 		return nil, errors.New("invalid user session")
 	}
 
-	user, err := s.GetById(session.UserID)
+	user, err := s.GetById(ctx, session.UserID)
 
-	latestSession, err := s.repo.GetLatestUserSessionByFamilyId(session.FamilyID)
+	latestSession, err := s.repo.GetLatestUserSessionByFamilyId(ctx, session.FamilyID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (s *UserService) RefreshUserSession(refresh RefreshTokenRequest) (*UserSess
 	if latestSession.ID != session.ID {
 		slog.Warn("detected potential session hijacking", session.ID, latestSession.ID)
 
-		err := s.repo.InvalidateUserSessionsByFamilyId(session.FamilyID)
+		err := s.repo.InvalidateUserSessionsByFamilyId(ctx, session.FamilyID)
 		if err != nil {
 			slog.Error("failed to invalidate user sessions by family id", err)
 			return nil, err
@@ -195,12 +195,12 @@ func (s *UserService) RefreshUserSession(refresh RefreshTokenRequest) (*UserSess
 		return nil, err
 	}
 
-	err = s.repo.InvalidateUserSessionById(session.ID)
+	err = s.repo.InvalidateUserSessionById(ctx, session.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	newSession, err := s.repo.CreateSession(UserSession{
+	newSession, err := s.repo.CreateSession(ctx, UserSession{
 		ID:               cuid.New(),
 		UserID:           user.ID,
 		RefreshTokenHash: tokens.RefreshTokenHash,
@@ -226,7 +226,7 @@ func (s *UserService) CreateUserSession(ctx context.Context, user *User) (*UserS
 
 	familyId := cuid.New()
 
-	newSession, err := s.repo.CreateSession(UserSession{
+	newSession, err := s.repo.CreateSession(ctx, UserSession{
 		ID:               cuid.New(),
 		UserID:           user.ID,
 		RefreshTokenHash: tokens.RefreshTokenHash,
@@ -244,7 +244,7 @@ func (s *UserService) CreateUserSession(ctx context.Context, user *User) (*UserS
 	}, nil
 }
 
-func (s *UserService) ExtractUserClaimsFromCookies(w http.ResponseWriter, r *http.Request) (AccessTokenClaims, error) {
+func (s *UserService) ExtractUserClaimsFromCookies(ctx context.Context, w http.ResponseWriter, r *http.Request) (AccessTokenClaims, error) {
 	accessTokenCookie, err := r.Cookie("AccessToken")
 	if err != nil {
 		return AccessTokenClaims{}, fmt.Errorf("failed to extract AccessToken cookie: %v", err)
@@ -265,7 +265,7 @@ func (s *UserService) ExtractUserClaimsFromCookies(w http.ResponseWriter, r *htt
 
 	claims, err := ParseAccessToken(accessToken)
 	if err != nil {
-		refreshResult, err := s.RefreshUserSession(RefreshTokenRequest{
+		refreshResult, err := s.RefreshUserSession(ctx, RefreshTokenRequest{
 			RefreshToken:  refreshToken,
 			UserSessionId: userSessionId,
 		})
@@ -314,12 +314,12 @@ func (s *UserService) ExtractUserFromCookies(ctx context.Context, w http.Respons
 	_, span := tracing.Tracer.Start(ctx, "UserService.ExtractUserFromCookies")
 	defer span.End()
 
-	claims, err := s.ExtractUserClaimsFromCookies(w, r)
+	claims, err := s.ExtractUserClaimsFromCookies(ctx, w, r)
 	if err != nil {
 		return &UserContext{IsLoggedIn: false, User: nil}, fmt.Errorf("failed to extract user claims: %v", err)
 	}
 
-	user, err := s.repo.GetById(claims.UserId)
+	user, err := s.repo.GetById(ctx, claims.UserId)
 	if err != nil {
 		return &UserContext{IsLoggedIn: false, User: nil}, fmt.Errorf("failed to get user by id: %v", err)
 	}

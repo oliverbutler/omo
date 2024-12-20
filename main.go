@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -87,10 +88,23 @@ func main() {
 		ctx := r.Context()
 		user, _ := app.Users.ExtractUserFromCookies(ctx, w, r)
 
-		if user.IsLoggedIn == false || user.User.Email != "dev@oliverbutler.uk" {
-			http.Redirect(w, r, "/", http.StatusFound)
+		span := tracing.GetSpanFromContext(r.Context())
+
+		if user.IsLoggedIn == false {
+			span.AddEvent("Non-logged in user tried to access manage photos")
+			http.Redirect(w, r, "/", http.StatusUnauthorized)
 			return
 		}
+
+		span.SetAttributes(attribute.String("user.email", user.User.Email))
+
+		if user.User.Email != "dev@oliverbutler.uk" {
+			span.AddEvent("Unauthorized user tried to access manage photos")
+			http.Redirect(w, r, "/", http.StatusUnauthorized)
+			return
+		}
+
+		span.AddEvent("User accessing manage photos")
 
 		pages.PhotosManage(ctx, app, user).Render(w)
 	})
