@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/utils"
 	"time"
 
@@ -33,6 +34,9 @@ func PgNewUserRepository(db *pgxpool.Pool) *PgUserRepository {
 }
 
 func (r *PgUserRepository) GetById(ctx context.Context, id string) (*User, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.GetById")
+	defer span.End()
+
 	row := r.db.QueryRow(
 		ctx,
 		"SELECT * FROM users WHERE id = $1",
@@ -50,6 +54,9 @@ func (r *PgUserRepository) GetById(ctx context.Context, id string) (*User, error
 }
 
 func (r *PgUserRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.GetByEmail")
+	defer span.End()
+
 	row := r.db.QueryRow(
 		ctx,
 		"SELECT * FROM users WHERE email = $1",
@@ -67,6 +74,9 @@ func (r *PgUserRepository) GetByEmail(ctx context.Context, email string) (*User,
 }
 
 func (r *PgUserRepository) CreateGitHubUser(ctx context.Context, user User, gitHubUserId int, gitHubAccessToken string) (*User, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.CreateGitHubUser")
+	defer span.End()
+
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		slog.Error("failed to begin transaction", err)
@@ -120,6 +130,9 @@ func (r *PgUserRepository) CreateGitHubUser(ctx context.Context, user User, gitH
 }
 
 func (r *PgUserRepository) GetUserSessionById(ctx context.Context, id string) (*UserSession, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.GetUserSessionById")
+	defer span.End()
+
 	row := r.db.QueryRow(
 		ctx,
 		"SELECT * FROM user_sessions WHERE id = $1",
@@ -137,6 +150,9 @@ func (r *PgUserRepository) GetUserSessionById(ctx context.Context, id string) (*
 }
 
 func (r *PgUserRepository) GetLatestUserSessionByFamilyId(ctx context.Context, familyId string) (*UserSession, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.GetLatestUserSessionByFamilyId")
+	defer span.End()
+
 	row := r.db.QueryRow(
 		ctx,
 		"SELECT * FROM user_sessions WHERE family_id = $1 ORDER BY created_at DESC LIMIT 1",
@@ -154,6 +170,9 @@ func (r *PgUserRepository) GetLatestUserSessionByFamilyId(ctx context.Context, f
 }
 
 func (r *PgUserRepository) InvalidateUserSessionsByFamilyId(ctx context.Context, familyId string) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.InvalidateUserSessionsByFamilyId")
+	defer span.End()
+
 	_, err := r.db.Exec(
 		ctx,
 		"UPDATE user_sessions SET invalidated_at = $1 WHERE family_id = $2",
@@ -168,6 +187,9 @@ func (r *PgUserRepository) InvalidateUserSessionsByFamilyId(ctx context.Context,
 }
 
 func (r *PgUserRepository) InvalidateUserSessionById(ctx context.Context, id string) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.InvalidateUserSessionById")
+	defer span.End()
+
 	_, err := r.db.Exec(
 		ctx,
 		"UPDATE user_sessions SET invalidated_at = $1 WHERE id = $2",
@@ -182,6 +204,9 @@ func (r *PgUserRepository) InvalidateUserSessionById(ctx context.Context, id str
 }
 
 func (r *PgUserRepository) CreateSession(ctx context.Context, session UserSession) (*UserSession, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.CreateSession")
+	defer span.End()
+
 	row := r.db.QueryRow(
 		ctx,
 		"INSERT INTO user_sessions (id, user_id, refresh_token_hash, expires_at, family_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
@@ -201,6 +226,9 @@ func (r *PgUserRepository) CreateSession(ctx context.Context, session UserSessio
 }
 
 func (r *PgUserRepository) IncrementVisitorCount(ctx context.Context) (int, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PgUserRepository.IncrementVisitorCount")
+	defer span.End()
+
 	var count int
 	row := r.db.QueryRow(
 		ctx,

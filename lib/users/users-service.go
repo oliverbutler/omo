@@ -149,6 +149,9 @@ func (s *UserService) UpsertUserFromGitHub(ctx context.Context, gitHubUser GitHu
 }
 
 func (s *UserService) RefreshUserSession(ctx context.Context, refresh RefreshTokenRequest) (*UserSessionResponse, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.RefreshUserSession")
+	defer span.End()
+
 	session, err := s.repo.GetUserSessionById(ctx, refresh.UserSessionId)
 	if err != nil {
 		return nil, err
@@ -245,6 +248,9 @@ func (s *UserService) CreateUserSession(ctx context.Context, user *User) (*UserS
 }
 
 func (s *UserService) ExtractUserClaimsFromCookies(ctx context.Context, w http.ResponseWriter, r *http.Request) (AccessTokenClaims, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.ExtractUserClaimsFromCookies")
+	defer span.End()
+
 	accessTokenCookie, err := r.Cookie("AccessToken")
 	if err != nil {
 		return AccessTokenClaims{}, fmt.Errorf("failed to extract AccessToken cookie: %v", err)
@@ -332,5 +338,8 @@ func (s *UserService) GetOAuthAuthorizationUrl() string {
 }
 
 func (s *UserService) IncrementVisitorCount(ctx context.Context) (int, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "UserService.IncrementVisitorCount")
+	defer span.End()
+
 	return s.repo.IncrementVisitorCount(ctx)
 }
