@@ -99,8 +99,8 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 
 			// Start a new span
 			ctx, span := Tracer.Start(ctx, name, trace.WithAttributes(
-				attribute.String("http.method", r.Method),
-				attribute.String("http.url", r.URL.String()),
+				attribute.String(string(semconv.HTTPRequestMethodKey), r.Method),
+				semconv.HTTPRoute(r.URL.Path),
 			))
 			defer span.End()
 
@@ -121,6 +121,11 @@ func NewOpenTelemetryMiddleware(logger *slog.Logger) func(http.Handler) http.Han
 				slog.Int("status", rw.statusCode),
 				slog.Int("responseSize", rw.size),
 				slog.Duration("duration", duration),
+			)
+
+			span.SetAttributes(
+				semconv.HTTPResponseStatusCode(rw.statusCode),
+				semconv.HTTPResponseSize(rw.size),
 			)
 		})
 	}
