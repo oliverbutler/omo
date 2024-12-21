@@ -1,0 +1,14 @@
+# kube-state-metrics-nodeport.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics-nodeport
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
