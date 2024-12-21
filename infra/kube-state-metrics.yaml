@@ -1,0 +1,65 @@
+# kube-state-metrics.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-state-metrics
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 5.6.0
+    chart: kube-state-metrics
+    helm:
+      values: |
+        prometheus:
+          monitor:
+            enabled: true
+            additionalLabels:
+              release: prometheus
+        serviceMonitor:
+          jobLabel: kube-state-metrics
+        service:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics-nodeport
+  namespace: monitoring
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
+--- 
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kube-state-metrics
+  namespace: monitoring
+spec:
+  jobLabel: kube-state-metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  endpoints:
+  - port: http
+    interval: 30s
