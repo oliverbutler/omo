@@ -4,7 +4,7 @@
 
 @layer base {
   html {
-    @apply bg-black selection:bg-primary-700/50;
+    @apply selection:bg-primary-700/50;
   }
 
   a {
@@ -14,6 +14,60 @@
 
 @view-transition {
   navigation: auto;
+}
+
+/* Grid Container */
+#masonry-grid {
+  position: relative;
+  width: 100%;
+  gap: 16px;
+}
+
+.photo-item {
+  position: absolute;
+  width: calc(
+    (100% - 32px) / 3
+  ); /* For 3 columns by default, accounting for gaps */
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Only enable transform transitions after initial load */
+.photo-item.initialized {
+  transition:
+    opacity 0.5s ease,
+    transform 0.3s ease;
+}
+
+@media (max-width: 639px) {
+  .photo-item {
+    width: calc((100% - 16px) / 2); /* For 2 columns */
+  }
+}
+
+@media (min-width: 1024px) {
+  .photo-item {
+    width: calc((100% - 48px) / 4); /* For 4 columns */
+  }
+}
+
+/* Responsive Columns */
+@media (min-width: 640px) {
+  #masonry-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  #masonry-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Optional Hover Effect */
+.photo-item a img:hover {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
 }
 
 #map-container {
