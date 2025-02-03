@@ -27,11 +27,11 @@ func Index(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 	blogTiles := []g.Node{}
 
 	for _, post := range posts {
-		blogTiles = append(blogTiles, Div(Class("bg-neutral-950 p-4 rounded-md"),
+		blogTiles = append(blogTiles, Div(Class("bg-gray-50 p-4 rounded-md"),
 			Img(Src(post.HeroImage), Class("w-full rounded-md"), Style("view-transition-name: hero-image-"+post.Slug)),
 			H3(Class("text-2xl font-bold"), A(Href("/post/"+post.Slug), g.Text(post.Title))),
-			Sub(Class("text-gray-200"), g.Text(post.PubDate.FormattedString())),
-			P(Class("text-gray-100"), g.Text(post.Description)),
+			Sub(Class("text-gray-900"), g.Text(post.PubDate.FormattedString())),
+			P(Class("text-gray-800"), g.Text(post.Description)),
 		))
 	}
 

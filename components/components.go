@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ButtonStyle = "p-2 px-3 bg-gray-900/70 hover:bg-gray-800 rounded-md transition-all"
+	ButtonStyle = "p-2 px-3 bg-gray-100/70 hover:bg-gray-200 rounded-md transition-all"
 )
 
 func PageFooter(ctx context.Context, app *lib.App) g.Node {
