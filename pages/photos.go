@@ -32,7 +32,7 @@ func Photos(ctx context.Context, app *lib.App, user *users.UserContext) g.Node {
 					g.Attr("blur-hash", photo.BlurHash),
 					g.Attr("data-width", fmt.Sprint(photo.Width)),
 					g.Attr("data-height", fmt.Sprint(photo.Height)),
-					Class("w-full rounded-md"),
+					Class("w-full rounded-md hover:opacity-95 transition-opacity"),
 					Style(fmt.Sprintf("aspect-ratio: %.2f;", aspectRatio)),
 					Alt(photo.Name),
 					Loading("lazy"),

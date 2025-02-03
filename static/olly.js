@@ -49,11 +49,6 @@ function processBlurHashImages() {
     img.style.backgroundSize = "cover";
     img.style.backgroundPosition = "center";
 
-    // Remove BlurHash when image loads
-    img.onload = function () {
-      img.style.backgroundImage = "none";
-    };
-
     // Mark this image as processed
     img.classList.add("processed-blur-hash");
   });

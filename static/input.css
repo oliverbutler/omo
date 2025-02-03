@@ -32,6 +32,26 @@
   transition: opacity 0.5s ease;
 }
 
+.photo-item img {
+  color: transparent; /* Removes the filename text */
+  background-size: cover;
+  background-position: center;
+  transition: opacity 0.5s ease;
+  opacity: 0; /* Start with the actual image hidden */
+}
+
+/* Style for blurhash background */
+.photo-item img.processed-blur-hash {
+  opacity: 1; /* Show the blurhash immediately */
+  background-size: cover;
+  background-position: center;
+}
+
+/* When the actual image is loaded */
+.photo-item img.loaded {
+  opacity: 1; /* Show the actual image */
+}
+
 /* Only enable transform transitions after initial load */
 .photo-item.initialized {
   transition:
@@ -62,12 +82,6 @@
   #masonry-grid {
     grid-template-columns: repeat(4, 1fr);
   }
-}
-
-/* Optional Hover Effect */
-.photo-item a img:hover {
-  transform: scale(1.05);
-  transition: transform 0.3s ease;
 }
 
 #map-container {
