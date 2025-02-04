@@ -10,6 +10,7 @@ import (
 	_ "image/png"
 	"io"
 	"log/slog"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"oliverbutler/lib/database"
@@ -249,22 +250,58 @@ func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, 
 	if ex, err := exif.Decode(bytes.NewReader(contentBytes)); err == nil {
 		// Get EXIF values, defaulting to empty string if not available
 		if val, err := ex.Get(exif.FocalLength); err == nil {
-			focalLength = val.String()
+			num, den, _ := val.Rat2(0) // Get rational numbers
+			if den != 0 {
+				focalLength = fmt.Sprintf("%.1fmm", float64(num)/float64(den))
+			}
 		}
 		if val, err := ex.Get(exif.FocalLengthIn35mmFilm); err == nil {
-			focalLength35mm = val.String()
+			mm, _ := val.Int(0)
+			focalLength35mm = fmt.Sprintf("%dmm", mm)
 		}
 		if val, err := ex.Get(exif.LensModel); err == nil {
-			lens = val.String()
+			lens = strings.Trim(val.String(), "\"") // Remove quotes
+
+			// Clean up common lens model strings
+			lens = strings.TrimSpace(lens)
+
+			// Remove common technical codes (like B061)
+			if idx := strings.LastIndex(lens, " B"); idx > 0 {
+				lens = strings.TrimSpace(lens[:idx])
+			}
+
+			// Try to get lens make if available
+			if lensMake, err := ex.Get(exif.LensMake); err == nil {
+				make := strings.Trim(lensMake.String(), "\"")
+				if !strings.Contains(strings.ToLower(lens), strings.ToLower(make)) {
+					lens = make + " " + lens
+				}
+			}
 		}
 		if val, err := ex.Get(exif.ApertureValue); err == nil {
-			aperature = val.String()
+			num, den, _ := val.Rat2(0)
+			if den != 0 {
+				aperature = fmt.Sprintf("%.1f", math.Pow(2, float64(num)/float64(den)/2))
+			}
 		}
 		if val, err := ex.Get(exif.ShutterSpeedValue); err == nil {
-			shutterSpeed = val.String()
+			num, den, _ := val.Rat2(0)
+			if den != 0 {
+				speed := math.Pow(2, -float64(num)/float64(den)) // Note the negative exponent here
+				if speed >= 1 {
+					if speed == float64(int64(speed)) {
+						shutterSpeed = fmt.Sprintf("%ds", int64(speed))
+					} else {
+						shutterSpeed = fmt.Sprintf("%.1fs", speed)
+					}
+				} else {
+					shutterSpeed = fmt.Sprintf("1/%d", int(1/speed+0.5)) // Round to nearest integer
+				}
+			}
 		}
 		if val, err := ex.Get(exif.ISOSpeedRatings); err == nil {
-			iso = val.String()
+			isoVal, _ := val.Int(0)
+			iso = fmt.Sprintf("%d", isoVal)
 		}
 	} else {
 		slog.Info("No EXIF data available for image", "photoId", photoId, "error", err)
