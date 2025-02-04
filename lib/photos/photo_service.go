@@ -52,13 +52,19 @@ func NewPhotoService(storage *storage.StorageService, db *database.DatabaseServi
 }
 
 type Photo struct {
-	ID        string
-	Name      string
-	BlurHash  string
-	Width     int
-	Height    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID              string
+	Name            string
+	BlurHash        string
+	Width           int
+	Height          int
+	Lens            string
+	Aperature       string
+	ShutterSpeed    string
+	ISO             string
+	FocalLength     string
+	FocalLength35mm string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *http.Request) error {
@@ -133,13 +139,19 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 
 		// Now that we have the metadata, we can write the photo to the database
 		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
-			ID:        photoId,
-			Name:      photoMetaData.Name,
-			BlurHash:  photoMetaData.BlurHash,
-			Width:     photoMetaData.Width,
-			Height:    photoMetaData.Height,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ID:              photoId,
+			Name:            photoMetaData.Name,
+			BlurHash:        photoMetaData.BlurHash,
+			Width:           photoMetaData.Width,
+			Height:          photoMetaData.Height,
+			Lens:            photoMetaData.Lens,
+			Aperature:       photoMetaData.Aperature,
+			ShutterSpeed:    photoMetaData.ShutterSpeed,
+			ISO:             photoMetaData.ISO,
+			FocalLength:     photoMetaData.FocalLength,
+			FocalLength35mm: photoMetaData.FocalLength35mm,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
 		}).Get(ctx, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to write photo to DB: %w", err)
@@ -250,9 +262,9 @@ func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, 
 	if ex, err := exif.Decode(bytes.NewReader(contentBytes)); err == nil {
 		// Get EXIF values, defaulting to empty string if not available
 		if val, err := ex.Get(exif.FocalLength); err == nil {
-			num, den, _ := val.Rat2(0) // Get rational numbers
+			num, den, _ := val.Rat2(0)
 			if den != 0 {
-				focalLength = fmt.Sprintf("%.1fmm", float64(num)/float64(den))
+				focalLength = fmt.Sprintf("%dmm", int(float64(num)/float64(den)))
 			}
 		}
 		if val, err := ex.Get(exif.FocalLengthIn35mmFilm); err == nil {
@@ -479,10 +491,20 @@ func (s *PhotoService) insertPhoto(ctx context.Context, photo *Photo) error {
 
 	slog.Info("Inserting photo into database", "id", photo.ID)
 	query := `
-		INSERT INTO photos (id, name, blur_hash, width, height, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO photos (
+			id, name, blur_hash, width, height,
+			lens, aperature, shutter_speed, iso,
+			focal_length, focal_length_35mm,
+			created_at, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
-	_, err := s.db.Pool.Exec(ctx, query, photo.ID, photo.Name, photo.BlurHash, photo.Width, photo.Height, photo.CreatedAt, photo.UpdatedAt)
+	_, err := s.db.Pool.Exec(ctx, query,
+		photo.ID, photo.Name, photo.BlurHash, photo.Width, photo.Height,
+		photo.Lens, photo.Aperature, photo.ShutterSpeed, photo.ISO,
+		photo.FocalLength, photo.FocalLength35mm,
+		photo.CreatedAt, photo.UpdatedAt,
+	)
 	return err
 }
 
