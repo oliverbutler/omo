@@ -405,6 +405,7 @@ func (s *PhotoService) getAllPhotos(ctx context.Context) ([]Photo, error) {
 	query := `
 		SELECT id, name, blur_hash, width, height, created_at, updated_at
 		FROM photos
+		ORDER BY created_at DESC
 	`
 	rows, err := s.db.Pool.Query(ctx, query)
 	if err != nil {
