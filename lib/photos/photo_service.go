@@ -22,6 +22,7 @@ import (
 	"github.com/buckket/go-blurhash"
 	"github.com/disintegration/imaging"
 	"github.com/lucsky/cuid"
+	"github.com/rwcarlsen/goexif/exif"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
@@ -126,6 +127,9 @@ func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Contex
 		var photoMetaData PhotoMetaData
 		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashAndMetadataActivity, photoId).Get(ctx, &photoMetaData)
 
+		// log out metadata
+		logger.Info("Photo metadata", "photoId", photoId, "metadata", photoMetaData)
+
 		// Now that we have the metadata, we can write the photo to the database
 		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
 			ID:        photoId,
@@ -205,8 +209,15 @@ func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get original photo content: %w", err)
 	}
+	defer originalPhotoContent.Close()
 
-	originalImage, _, err := image.Decode(originalPhotoContent)
+	// Read the content into a byte slice
+	contentBytes, err := io.ReadAll(originalPhotoContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read photo content: %w", err)
+	}
+
+	originalImage, _, err := image.Decode(bytes.NewReader(contentBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode original image: %w", err)
 	}
@@ -231,19 +242,59 @@ func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, 
 		return nil, fmt.Errorf("failed to generate BlurHash: %w", err)
 	}
 
+	// Initialize empty EXIF values
+	var focalLength, focalLength35mm, lens, aperature, shutterSpeed, iso string
+
+	// Try to read EXIF data, but continue if it's not available
+	if ex, err := exif.Decode(bytes.NewReader(contentBytes)); err == nil {
+		// Get EXIF values, defaulting to empty string if not available
+		if val, err := ex.Get(exif.FocalLength); err == nil {
+			focalLength = val.String()
+		}
+		if val, err := ex.Get(exif.FocalLengthIn35mmFilm); err == nil {
+			focalLength35mm = val.String()
+		}
+		if val, err := ex.Get(exif.LensModel); err == nil {
+			lens = val.String()
+		}
+		if val, err := ex.Get(exif.ApertureValue); err == nil {
+			aperature = val.String()
+		}
+		if val, err := ex.Get(exif.ShutterSpeedValue); err == nil {
+			shutterSpeed = val.String()
+		}
+		if val, err := ex.Get(exif.ISOSpeedRatings); err == nil {
+			iso = val.String()
+		}
+	} else {
+		slog.Info("No EXIF data available for image", "photoId", photoId, "error", err)
+	}
+
 	return &PhotoMetaData{
-		Name:     originalPhoto.Name,
-		BlurHash: hash,
-		Width:    originalImage.Bounds().Dx(),
-		Height:   originalImage.Bounds().Dy(),
+		Name:            originalPhoto.Name,
+		BlurHash:        hash,
+		Width:           originalImage.Bounds().Dx(),
+		Height:          originalImage.Bounds().Dy(),
+		FocalLength:     focalLength,
+		FocalLength35mm: focalLength35mm,
+		Lens:            lens,
+		Aperature:       aperature,
+		ShutterSpeed:    shutterSpeed,
+		ISO:             iso,
 	}, nil
 }
 
 type PhotoMetaData struct {
-	Name     string
-	BlurHash string
-	Width    int
-	Height   int
+	Name            string
+	BlurHash        string
+	Width           int
+	Height          int
+	Lens            string
+	Aperature       string
+	ShutterSpeed    string
+	ISO             string
+	FocalLength     string
+	FocalLength35mm string
 }
 
 func (s *PhotoService) WritePhotoToDBActivity(ctx context.Context, photo Photo) error {
