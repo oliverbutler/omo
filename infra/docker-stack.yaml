@@ -23,6 +23,11 @@ services:
   backend:
     image: ghcr.io/oliverbutler/omo:latest
     restart: unless-stopped
+    depends_on:
+      temporal:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6900/health"]
       interval: 30s
@@ -55,8 +60,6 @@ services:
       # STORAGE_ENDPOINT: https://b0bd4bf4ecaf861687a5f5a08fde654c.r2.cloudflarestorage.com
       # STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
       # STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
-    depends_on:
-      - db
 
   db:
     image: postgres:16.4
@@ -81,7 +84,14 @@ services:
     image: temporalio/auto-setup:1.25.0
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "localhost:7233", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     environment:
       - DB=postgres12
       - DB_PORT=5432
