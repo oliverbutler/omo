@@ -123,7 +123,7 @@ func main() {
 			return
 		}
 
-		err := app.Photos.UploadPhotosAndStartWorkflows(r.Context(), r)
+		err := app.Photos.UploadPhotos(r.Context(), r)
 		if err != nil {
 			slog.Error("Failed to upload photos", "error", err)
 			http.Error(w, "Failed to upload photos", http.StatusInternalServerError)

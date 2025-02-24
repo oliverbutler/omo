@@ -12,7 +12,6 @@ import (
 	"oliverbutler/lib/storage"
 	"oliverbutler/lib/tracing"
 	"oliverbutler/lib/users"
-	"oliverbutler/lib/workflow"
 	"os"
 )
 
@@ -24,7 +23,6 @@ type App struct {
 	Blog        *blog.BlogService
 	Photos      *photos.PhotoService
 	Mapping     *mapping.MappingService
-	Workflow    *workflow.WorkflowService
 }
 
 // Single place services are instantiated, and environment variables are read and passed to the services.
@@ -49,21 +47,13 @@ func NewApp(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	workflowService, err := workflow.NewWorkflowService(env)
-	if err != nil {
-		return nil, err
-	}
-
 	userService := users.NewUserService(db, env)
 
 	blogService := blog.NewBlogService()
 
-	photoService := photos.NewPhotoService(storageService, db, workflowService)
+	photoService := photos.NewPhotoService(storageService, db)
 
 	mappingService := mapping.NewMappingService()
-
-	/// At the end, the background worker is started.
-	workflowService.StartBackgroundWorker()
 
 	return &App{
 		Database:    db,
@@ -73,11 +63,9 @@ func NewApp(ctx context.Context) (*App, error) {
 		Storage:     storageService,
 		Mapping:     mappingService,
 		Environment: env,
-		Workflow:    workflowService,
 	}, nil
 }
 
 func (a *App) TearDown() {
 	a.Database.TearDown()
-	a.Workflow.TearDown()
 }

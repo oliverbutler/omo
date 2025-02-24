@@ -14,41 +14,29 @@ import (
 	"mime/multipart"
 	"net/http"
 	"oliverbutler/lib/database"
+	"oliverbutler/lib/logging"
 	"oliverbutler/lib/storage"
 	"oliverbutler/lib/tracing"
-	"oliverbutler/lib/workflow"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/buckket/go-blurhash"
 	"github.com/disintegration/imaging"
 	"github.com/lucsky/cuid"
 	"github.com/rwcarlsen/goexif/exif"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
-	temporalWorkflow "go.temporal.io/sdk/workflow"
 )
 
 type PhotoService struct {
-	storage  *storage.StorageService
-	db       *database.DatabaseService
-	workflow *workflow.WorkflowService
+	storage *storage.StorageService
+	db      *database.DatabaseService
 }
 
-func NewPhotoService(storage *storage.StorageService, db *database.DatabaseService, workflow *workflow.WorkflowService) *PhotoService {
-	service := &PhotoService{
-		storage:  storage,
-		db:       db,
-		workflow: workflow,
+func NewPhotoService(storage *storage.StorageService, db *database.DatabaseService) *PhotoService {
+	return &PhotoService{
+		storage: storage,
+		db:      db,
 	}
-
-	workflow.RegisterWorkflow("PhotoUpload", service.NewPhotoUploadWorkflow())
-	workflow.RegisterActivity(service.GeneratePreviewActivity)
-	workflow.RegisterActivity(service.GenerateBlurHashAndMetadataActivity)
-	workflow.RegisterActivity(service.WritePhotoToDBActivity)
-
-	return service
 }
 
 type Photo struct {
@@ -67,8 +55,8 @@ type Photo struct {
 	UpdatedAt       time.Time
 }
 
-func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *http.Request) error {
-	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.UploadPhotosAndStartWorkflows")
+func (s *PhotoService) UploadPhotos(ctx context.Context, r *http.Request) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.UploadPhotos")
 	defer span.End()
 
 	slog.Info("Starting upload photos")
@@ -79,96 +67,150 @@ func (s *PhotoService) UploadPhotosAndStartWorkflows(ctx context.Context, r *htt
 	}
 
 	files := r.MultipartForm.File["photo"]
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(files))
 
 	for _, fileHeader := range files {
+		wg.Add(1)
+		go func(fh *multipart.FileHeader) {
+			defer wg.Done()
 
-		storeImageResult, err := s.storeOriginalImage(ctx, fileHeader)
+			// Store the original image
+			storeImageResult, err := s.storeOriginalImage(ctx, fh)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to store original image: %w", err)
+				return
+			}
+
+			// Process the image
+			err = s.processPhoto(ctx, storeImageResult.ID, storeImageResult.Name)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to process photo %s: %w", storeImageResult.ID, err)
+				return
+			}
+		}(fileHeader)
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors
+	for err := range errChan {
 		if err != nil {
-			return fmt.Errorf("failed to store original image: %w", err)
+			return err
 		}
-
-		s.workflow.ExecuteWorkflow(context.Background(), client.StartWorkflowOptions{
-			ID:        "photo_upload_" + storeImageResult.ID,
-			TaskQueue: "oliverbutler",
-		}, "PhotoUpload", PhotoUploadWorkflowParams{
-			PhotoId:   storeImageResult.ID,
-			ImageName: storeImageResult.Name,
-		})
 	}
 
 	return nil
 }
 
-type PhotoUploadWorkflowParams struct {
-	PhotoId   string
-	ImageName string
+func (s *PhotoService) processPhoto(ctx context.Context, photoId string, imageName string) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.processPhoto")
+	defer span.End()
+
+	logger := slog.With("photoId", photoId)
+	logger.Info("Processing photo")
+
+	// Generate previews concurrently
+	var wg sync.WaitGroup
+	errChan := make(chan error, 3)
+
+	sizes := []struct {
+		name  string
+		width int
+	}{
+		{"small", 300},
+		{"medium", 768},
+		{"large", 1920},
+	}
+
+	for _, size := range sizes {
+		wg.Add(1)
+		go func(sizeName string, width int) {
+			defer wg.Done()
+			err := s.generatePreview(ctx, photoId, imageName, sizeName, width)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to generate %s preview: %w", sizeName, err)
+			}
+		}(size.name, size.width)
+	}
+
+	// Wait for preview generation to complete
+	wg.Wait()
+	close(errChan)
+
+	// Check for preview generation errors
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// Generate metadata and blurhash
+	metadata, err := s.generateBlurHashAndMetadata(ctx, photoId, imageName)
+	if err != nil {
+		return fmt.Errorf("failed to generate metadata: %w", err)
+	}
+
+	// Write to database
+	err = s.insertPhoto(ctx, &Photo{
+		ID:              photoId,
+		Name:            imageName,
+		BlurHash:        metadata.BlurHash,
+		Width:           metadata.Width,
+		Height:          metadata.Height,
+		Lens:            metadata.Lens,
+		Aperature:       metadata.Aperature,
+		ShutterSpeed:    metadata.ShutterSpeed,
+		ISO:             metadata.ISO,
+		FocalLength:     metadata.FocalLength,
+		FocalLength35mm: metadata.FocalLength35mm,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to write to database: %w", err)
+	}
+
+	logger.Info("Photo processed successfully")
+	return nil
 }
 
-func (s *PhotoService) NewPhotoUploadWorkflow() func(ctx temporalWorkflow.Context, param PhotoUploadWorkflowParams) (string, error) {
-	return func(ctx temporalWorkflow.Context, param PhotoUploadWorkflowParams) (string, error) {
-		ao := temporalWorkflow.ActivityOptions{
-			StartToCloseTimeout: 30 * time.Second,
-			RetryPolicy: &temporal.RetryPolicy{
-				MaximumAttempts: 6,
-			},
-		}
-		ctx = temporalWorkflow.WithActivityOptions(ctx, ao)
+func (s *PhotoService) generatePreview(ctx context.Context, photoId string, filename string, sizeName string, width int) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.generatePreview")
+	defer span.End()
 
-		logger := temporalWorkflow.GetLogger(ctx)
-		logger.Info("Starting photo upload workflow", "photoId", param.PhotoId)
+	logger := slog.With("photoId", photoId, "size", sizeName, "width", width)
+	logger.Info("Generating preview")
 
-		var futureSmall, futureMedium, futureLarge temporalWorkflow.Future
-
-		futureSmall = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId: param.PhotoId, SizeName: "small", Width: 300, Filename: param.ImageName,
-		})
-
-		futureMedium = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId: param.PhotoId, SizeName: "medium", Width: 768, Filename: param.ImageName,
-		})
-
-		futureLarge = temporalWorkflow.ExecuteActivity(ctx, s.GeneratePreviewActivity, GeneratePreviewActivityParams{
-			PhotoId: param.PhotoId, SizeName: "large", Width: 1920, Filename: param.ImageName,
-		})
-
-		// Wait for all activities to complete and check for errors
-		err := futureSmall.Get(ctx, nil)
-		err = futureMedium.Get(ctx, nil)
-		err = futureLarge.Get(ctx, nil)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate preview: %w", err)
-		}
-
-		var photoMetaData PhotoMetaData
-		err = temporalWorkflow.ExecuteActivity(ctx, s.GenerateBlurHashAndMetadataActivity, GenerateBlurHashAndMetadataActivityParams{
-			PhotoId: param.PhotoId, Filename: param.ImageName,
-		}).Get(ctx, &photoMetaData)
-
-		// log out metadata
-		logger.Info("Photo metadata", "photoId", param.PhotoId, "metadata", photoMetaData)
-
-		// Now that we have the metadata, we can write the photo to the database
-		err = temporalWorkflow.ExecuteActivity(ctx, s.WritePhotoToDBActivity, Photo{
-			ID:              param.PhotoId,
-			Name:            param.ImageName,
-			BlurHash:        photoMetaData.BlurHash,
-			Width:           photoMetaData.Width,
-			Height:          photoMetaData.Height,
-			Lens:            photoMetaData.Lens,
-			Aperature:       photoMetaData.Aperature,
-			ShutterSpeed:    photoMetaData.ShutterSpeed,
-			ISO:             photoMetaData.ISO,
-			FocalLength:     photoMetaData.FocalLength,
-			FocalLength35mm: photoMetaData.FocalLength35mm,
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
-		}).Get(ctx, nil)
-		if err != nil {
-			return "", fmt.Errorf("failed to write photo to DB: %w", err)
-		}
-
-		return "Successfully processed image: " + param.PhotoId, nil
+	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, filename)
+	if err != nil {
+		return fmt.Errorf("failed to get original photo: %w", err)
 	}
+
+	originalPhotoContent, err := s.storage.StorageRepo.GetItemContent(ctx, originalPhoto)
+	if err != nil {
+		return fmt.Errorf("failed to get original photo content: %w", err)
+	}
+	defer originalPhotoContent.Close()
+
+	originalImage, _, err := image.Decode(originalPhotoContent)
+	if err != nil {
+		return fmt.Errorf("failed to decode original image: %w", err)
+	}
+
+	preview, err := s.generateResizedImage(originalImage, width)
+	if err != nil {
+		return fmt.Errorf("failed to generate resized image: %w", err)
+	}
+
+	_, err = s.storage.StorageRepo.PutItem(ctx, "photos", photoId, sizeName+".jpg", preview, int64(preview.Len()), "image/jpeg")
+	if err != nil {
+		return fmt.Errorf("failed to store preview image: %w", err)
+	}
+
+	return nil
 }
 
 type GeneratePreviewActivityParams struct {
@@ -182,9 +224,7 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GeneratePreviewActivity")
 	defer span.End()
 
-	logger := activity.GetLogger(ctx)
-
-	logger.Info("Generating preview for photo", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
+	logging.OmoLogger.Info("Generating preview for photo", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
 
 	/// Pull down original photo from storage
 	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", params.PhotoId, params.Filename)
@@ -215,7 +255,7 @@ func (s *PhotoService) GeneratePreviewActivity(ctx context.Context, params Gener
 		return fmt.Errorf("failed to store preview image: %w", err)
 	}
 
-	logger.Info("Preview generated successfully", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
+	logging.OmoLogger.Info("Preview generated successfully", "photoId", params.PhotoId, "size", params.SizeName, "width", params.Width)
 
 	return nil
 }
@@ -225,11 +265,11 @@ type GenerateBlurHashAndMetadataActivityParams struct {
 	Filename string
 }
 
-func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, params GenerateBlurHashAndMetadataActivityParams) (*PhotoMetaData, error) {
+func (s *PhotoService) generateBlurHashAndMetadata(ctx context.Context, photoId string, filename string) (*PhotoMetaData, error) {
 	ctx, span := tracing.OmoTracer.Start(ctx, "PhotoService.GenerateBlurHashAndMetadataActivity")
 	defer span.End()
 
-	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", params.PhotoId, params.Filename)
+	originalPhoto, err := s.storage.StorageRepo.GetItem(ctx, "photos", photoId, filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get original photo: %w", err)
 	}
@@ -332,7 +372,7 @@ func (s *PhotoService) GenerateBlurHashAndMetadataActivity(ctx context.Context, 
 			iso = fmt.Sprintf("%d", isoVal)
 		}
 	} else {
-		slog.Info("No EXIF data available for image", "photoId", params.PhotoId, "error", err)
+		slog.Info("No EXIF data available for image", "photoId", photoId, "error", err)
 	}
 
 	return &PhotoMetaData{

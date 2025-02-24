@@ -12,34 +12,23 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
-	oteltrace "go.opentelemetry.io/otel/sdk/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 var (
 	OmoTracer        trace.Tracer
-	OmoTraceProvider *sdktrace.TracerProvider
+	OmoTraceProvider noop.TracerProvider
 	DBTracer         trace.Tracer
-	DBTraceProvider  *sdktrace.TracerProvider
+	DBTraceProvider  noop.TracerProvider
 )
 
 func GetSpanFromContext(ctx context.Context) trace.Span {
 	return trace.SpanFromContext(ctx)
-}
-
-func newOTLPExporter(ctx context.Context) (oteltrace.SpanExporter, error) {
-	// Change default HTTPS -> HTTP
-	insecureOpt := otlptracehttp.WithInsecure()
-
-	// Update default OTLP reciver endpoint
-	endpointOpt := otlptracehttp.WithEndpoint("10.0.0.40:4318")
-
-	return otlptracehttp.New(ctx, insecureOpt, endpointOpt)
 }
 
 func newTraceProvider(name string, env *environment.EnvironmentService, exp sdktrace.SpanExporter) *sdktrace.TracerProvider {
@@ -75,17 +64,11 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 }
 
 func InitTracing(ctx context.Context, env *environment.EnvironmentService) error {
-	exp, err := newOTLPExporter(ctx)
-	if err != nil {
-		slog.Error("Failed to create console exporter", "error", err)
-		return err
-	}
-
-	OmoTraceProvider = newTraceProvider("omo", env, exp)
+	OmoTraceProvider = noop.NewTracerProvider()
 	otel.SetTracerProvider(OmoTraceProvider)
 	OmoTracer = OmoTraceProvider.Tracer("omo")
 
-	DBTraceProvider = newTraceProvider("omo-db", env, exp)
+	DBTraceProvider = noop.NewTracerProvider()
 	otel.SetTracerProvider(DBTraceProvider)
 	DBTracer = DBTraceProvider.Tracer("omodb")
 
@@ -93,8 +76,8 @@ func InitTracing(ctx context.Context, env *environment.EnvironmentService) error
 }
 
 func Teardown() {
-	_ = OmoTraceProvider.Shutdown(context.Background())
-	_ = DBTraceProvider.Shutdown(context.Background())
+	// _ = OmoTraceProvider.Shutdown(context.Background())
+	// _ = DBTraceProvider.Shutdown(context.Background())
 }
 
 // https://github.com/go-chi/chi/issues/270#issuecomment-479184559

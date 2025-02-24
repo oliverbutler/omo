@@ -17,7 +17,6 @@ type EnvironmentService struct {
 	dbUser             string
 	dbPassword         string
 	rootStoragePath    string
-	temporalHost       string
 	githubClientId     string
 	githubClientSecret string
 	env                Environment
@@ -55,15 +54,13 @@ func NewEnvironmentService() (*EnvironmentService, error) {
 func (e *EnvironmentService) load() error {
 	e.baseURL = e.getEnvOrDefault("BASE_URL", "http://localhost:6900")
 	e.dbHost = e.getEnvOrDefault("DB_HOST", "localhost")
-	e.dbName = e.getEnvOrDefault("DB_NAME", "mydb")
-	e.dbUser = e.getEnvOrDefault("DB_USER", "user")
-	e.dbPassword = e.getEnvOrDefault("DB_PASSWORD", "")
+	e.dbName = e.getEnvOrDefault("DB_NAME", "oliverbutler")
+	e.dbUser = e.getEnvOrDefault("DB_USER", "postgres")
+	e.dbPassword = e.getEnvOrDefault("DB_PASSWORD", "password")
 
 	e.dbPort = e.getEnvOrDefault("DB_PORT", "5432")
 
 	e.rootStoragePath = e.getEnvOrDefault("ROOT_STORAGE_PATH", "/tmp/storage")
-
-	e.temporalHost = e.getEnvOrDefault("TEMPORAL_HOST", "localhost:7233")
 
 	e.githubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
 	e.githubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
@@ -134,10 +131,6 @@ func (e *EnvironmentService) GetDbPassword() string {
 
 func (e *EnvironmentService) GetRootStoragePath() string {
 	return e.rootStoragePath
-}
-
-func (e *EnvironmentService) GetTemporalHost() string {
-	return e.temporalHost
 }
 
 func (e *EnvironmentService) GetEnv() Environment {

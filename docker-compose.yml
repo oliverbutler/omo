@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   db:
@@ -22,43 +22,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  temporal:
-    image: temporalio/auto-setup:1.25.0
-    depends_on:
-      - db
-    environment:
-      - DB=postgres12
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=password
-      - POSTGRES_SEEDS=db
-    ports:
-      - target: 7233
-        published: 7233
-        mode: host
-
-  temporal-admin-tools:
-    image: temporalio/admin-tools:1.25.0-tctl-1.18.1-cli-1.0.0
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CLI_ADDRESS=temporal:7233
-    stdin_open: true
-    tty: true
-
-  temporal-ui:
-    image: temporalio/ui:2.30.3
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    ports:
-      - target: 8080
-        published: 8080
-        mode: host
 
 volumes:
   pgdata:
