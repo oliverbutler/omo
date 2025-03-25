@@ -67,7 +67,7 @@ services:
       AUTH_GITHUB_CLIENT_SECRET: ${AUTH_GITHUB_CLIENT_SECRET}
       STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
       STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
-      STORAGE_ENDPOINT: https://b0bd4bf4ecaf861687a5f5a08fde654c.r2.cloudflarestorage.com/omo
+      STORAGE_ENDPOINT: https://b0bd4bf4ecaf861687a5f5a08fde654c.r2.cloudflarestorage.com
 
   db:
     image: postgres:16.4
