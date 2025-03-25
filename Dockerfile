@@ -11,9 +11,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # Run stage
 FROM alpine:3.14
+
+# Need curl for healthcheck
+RUN apt-get update && apt-get install -y curl
+
 WORKDIR /app
 COPY --from=builder /app/main .
 COPY static ./static
+
 
 # Copy the output.css file
 COPY --from=builder /app/static/output.css ./static/output.css

@@ -39,9 +39,9 @@ services:
         window: 120s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6900/health"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 40s
     labels:
       - "traefik.enable=true"
