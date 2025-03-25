@@ -63,8 +63,8 @@ func (e *EnvironmentService) load() error {
 
 	e.DbPort = e.getEnvOrDefault("DB_PORT", "5432")
 
-	e.GithubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
-	e.GithubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
+	e.GithubClientId = e.getEnvOrDefault("AUTH_GITHUB_CLIENT_ID", "")
+	e.GithubClientSecret = e.getEnvOrDefault("AUTH_GITHUB_CLIENT_SECRET", "")
 
 	e.StorageAccessKeyID = e.getEnvOrDefault("STORAGE_ACCESS_KEY_ID", "")
 	e.StorageSecretAccessKey = e.getEnvOrDefault("STORAGE_SECRET_ACCESS_KEY", "")

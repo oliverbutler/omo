@@ -33,7 +33,7 @@ func NewGitHubService(env *environment.EnvironmentService) *GitHubService {
 func (s *GitHubService) GetOAuthAuthorizationUrl() string {
 	redirectUri := utils.GetBaseUrl() + RedirectPath
 
-	return "https://github.com/login/oauth/authorize?client_id=" + s.env.GetGithubClientId() + "&redirect_uri=" + redirectUri + "&scope=user:email"
+	return "https://github.com/login/oauth/authorize?client_id=" + s.env.GithubClientId + "&redirect_uri=" + redirectUri + "&scope=user:email"
 }
 
 func (s *GitHubService) ExchangeOAuthCodeForAccessToken(ctx context.Context, code string) (*TokenResponse, error) {
@@ -43,8 +43,8 @@ func (s *GitHubService) ExchangeOAuthCodeForAccessToken(ctx context.Context, cod
 	slog.Info("Exchanging code for access token", "code", code)
 
 	data := map[string]string{
-		"client_id":     s.env.GetGithubClientId(),
-		"client_secret": s.env.GetGithubClientSecret(),
+		"client_id":     s.env.GithubClientId,
+		"client_secret": s.env.GithubClientSecret,
 		"code":          code,
 		"redirect_uri":  utils.GetBaseUrl() + RedirectPath,
 	}

@@ -37,7 +37,7 @@ func main() {
 	fileServer := http.FileServer(http.Dir("./static"))
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if app.Environment.GetEnv() == environment.Local {
+		if app.Environment.Env == environment.Local {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Expires", "0")
@@ -214,7 +214,7 @@ func main() {
 			return
 		}
 
-		secureCookie := strings.HasPrefix(app.Environment.GetBaseURL(), "https")
+		secureCookie := strings.HasPrefix(app.Environment.BaseURL, "https")
 
 		// Set cookies
 		http.SetCookie(w, &http.Cookie{
@@ -293,7 +293,7 @@ func main() {
 
 	host := "0.0.0.0"
 
-	if app.Environment.GetEnv() == environment.Local {
+	if app.Environment.Env == environment.Local {
 		host = "localhost"
 	}
 

@@ -206,3 +206,31 @@ func (s *S3StorageRepo) ListItems(ctx context.Context, bucket, folder string) ([
 
 	return items, nil
 }
+
+// GetItemContent retrieves the content of an item as a ReadCloser
+func (s *S3StorageRepo) GetItemContent(ctx context.Context, item *FileItem) (io.ReadCloser, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "S3StorageRepo.GetItemContent",
+		trace.WithAttributes(
+			attribute.String("bucket", item.Bucket),
+			attribute.String("folder", item.Folder),
+			attribute.String("name", item.Name),
+		))
+	defer span.End()
+
+	key := item.Folder + "/" + item.Name
+	if item.Folder == "" {
+		key = item.Name
+	}
+
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(item.Bucket),
+		Key:    aws.String(key),
+	}
+
+	result, err := s.client.GetObject(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object content: %w", err)
+	}
+
+	return result.Body, nil
+}

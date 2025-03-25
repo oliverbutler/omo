@@ -499,13 +499,6 @@ func (s *PhotoService) DeletePhoto(ctx context.Context, id string) error {
 		return fmt.Errorf("photo with id %s does not exist", id)
 	}
 
-	// Delete folder
-	slog.Info("Deleting folder from storage")
-	err = s.storage.StorageRepo.DeleteFolder(ctx, "photos", id)
-	if err != nil {
-		return fmt.Errorf("failed to delete folder from storage: %w", err)
-	}
-
 	// Delete metadata from database
 	slog.Info("Deleting metadata from database")
 	query := `

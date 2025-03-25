@@ -42,7 +42,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		return nil, err
 	}
 
-	storageService, err := storage.NewStorageService(env)
+	storageService, err := storage.NewStorageService(ctx, env)
 	if err != nil {
 		return nil, err
 	}
