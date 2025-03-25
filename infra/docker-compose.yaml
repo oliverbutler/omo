@@ -24,10 +24,19 @@ services:
     image: ghcr.io/oliverbutler/omo:latest
     restart: unless-stopped
     depends_on:
-      temporal:
-        condition: service_healthy
       db:
         condition: service_healthy
+    deploy:
+      mode: replicated
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6900/health"]
       interval: 30s
@@ -52,9 +61,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: password
       DB_PORT: 5432
-      BASE_URL: https://oliverbutler.com
+      BASE_URL: https://oliverbutler.uk
       ENV: production
-      TEMPORAL_HOST: temporal:7233
       # AUTH_GITHUB_CLIENT_ID: TODO
       # AUTH_GITHUB_CLIENT_SECRET: TODO
       # STORAGE_ENDPOINT: https://b0bd4bf4ecaf861687a5f5a08fde654c.r2.cloudflarestorage.com
@@ -80,51 +88,5 @@ services:
       timeout: 5s
       retries: 5
 
-  temporal:
-    image: temporalio/auto-setup:1.25.0
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "tctl", "--address", "localhost:7233", "cluster", "health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    environment:
-      - DB=postgres12
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=password
-      - POSTGRES_SEEDS=db
-    ports:
-      - target: 7233
-        published: 7233
-        mode: host
-
-  temporal-admin-tools:
-    restart: unless-stopped
-    image: temporalio/admin-tools:1.25.0-tctl-1.18.1-cli-1.0.0
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CLI_ADDRESS=temporal:7233
-    stdin_open: true
-    tty: true
-
-  temporal-ui:
-    restart: unless-stopped
-    image: temporalio/ui:2.30.3
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    ports:
-      - target: 8080
-        published: 7234
-        mode: host
 volumes:
   pgdata:

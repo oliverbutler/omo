@@ -47,7 +47,7 @@ func main() {
 
 	r.Use(middleware.Recoverer, tracing.NewOpenTelemetryMiddleware(logging.OmoLogger))
 
-	InitDevReloadWebsocket(r)
+	// InitDevReloadWebsocket(r)
 
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./static/favicon.ico")

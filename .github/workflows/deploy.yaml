@@ -21,5 +21,81 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:omo
 
-      - name: Ping VPS
-        run: ping 100.89.106.45
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Generate image tag 🏷️
+        id: generate_tag
+        run: |
+          ISO_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          IMAGE_TAG="${ISO_TIMESTAMP}-${SHORT_SHA}"
+          # Replace colons and plus signs to comply with Docker tag rules
+          IMAGE_TAG_SANITIZED=$(echo "${IMAGE_TAG}" | tr -d ':' | tr '+' '-')
+          echo "image_tag=${IMAGE_TAG_SANITIZED}" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Build and push Docker image 💨
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}
+            ghcr.io/oliverbutler/omo:latest
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code ⤵️
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "Host vps
+            Hostname 100.89.106.45
+            User olly
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking no
+            UserKnownHostsFile=/dev/null
+          " > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # Create .env file with secrets
+      - name: Create .env file
+        run: |
+          cat << EOF > infra/docker/.env
+          # AUTH_GITHUB_CLIENT_ID=${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+          # AUTH_GITHUB_CLIENT_SECRET=${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
+          # STORAGE_ACCESS_KEY_ID=${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          # STORAGE_SECRET_ACCESS_KEY=${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+          EOF
+
+      - name: Copy docker directory across (including .env)
+        run: |
+          scp -r \
+            infra \
+            vps:/home/olly/
+
+      - name: Deploy to Production
+        run: |
+          ssh vps "
+            cd /home/olly/infra
+            echo '${{ secrets.CONTAINER_REGISTRY_PASSWORD }}' | docker login ghcr.io -u omo --password-stdin
+
+            docker compose -f docker-compose.yaml --env-file .env pull
+
+            docker rollout backend -f docker-compose.yaml --env-file .env
+
+            docker compose -f docker-compose.yaml --env-file .env up -d --remove-orphans --scale backend=2
+
+            docker image prune -f  # Clean up old images
+              "
