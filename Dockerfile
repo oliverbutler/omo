@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 FROM alpine:3.14
 
 # Need curl for healthcheck
-RUN apt-get update && apt-get install -y curl
+RUN apk add --no-cache curl
 
 WORKDIR /app
 COPY --from=builder /app/main .
