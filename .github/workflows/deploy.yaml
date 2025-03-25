@@ -14,42 +14,12 @@ jobs:
       - name: Set up Docker Buildx 👷
         uses: docker/setup-buildx-action@v2
 
-      - name: Log in to registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Generate image tag 🏷️
-        id: generate_tag
-        run: |
-          ISO_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
-          IMAGE_TAG="${ISO_TIMESTAMP}-${SHORT_SHA}"
-          # Replace colons and plus signs to comply with Docker tag rules
-          IMAGE_TAG_SANITIZED=$(echo "${IMAGE_TAG}" | tr -d ':' | tr '+' '-')
-          echo "image_tag=${IMAGE_TAG_SANITIZED}" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-
-      - name: Build and push Docker image 💨
-        uses: docker/build-push-action@v4
+      - name: Tailscale
+        uses: tailscale/github-action@v3
         with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}
-            ghcr.io/oliverbutler/omo:latest
-          platforms: linux/amd64
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:omo
 
-      - name: Bump deployment image 🚀
-        run: |
-          sed -i "s|image: ghcr.io/oliverbutler/omo:.*|image: ghcr.io/oliverbutler/omo:${{ steps.generate_tag.outputs.image_tag }}|" infra/backend.yaml
-        shell: bash
-
-      - name: Commit and push changes 📝
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions Bot"
-          git add infra/backend.yaml
-          git commit -m "ci: update omo image to ${{ steps.generate_tag.outputs.image_tag }}"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ping VPS
+        run: ping 100.89.106.45
