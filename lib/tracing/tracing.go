@@ -38,7 +38,7 @@ func newTraceProvider(name string, env *environment.EnvironmentService, exp sdkt
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceName(name),
-			semconv.DeploymentEnvironment(env.GetEnv().String()),
+			semconv.DeploymentEnvironment(env.Env.String()),
 		),
 	)
 	if err != nil {

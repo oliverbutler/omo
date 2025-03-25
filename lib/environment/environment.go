@@ -4,22 +4,25 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 type EnvironmentService struct {
-	baseURL            string
-	dbHost             string
-	dbPort             string
-	dbName             string
-	dbUser             string
-	dbPassword         string
-	rootStoragePath    string
-	githubClientId     string
-	githubClientSecret string
-	env                Environment
+	BaseURL            string
+	DbHost             string
+	DbPort             string
+	DbName             string
+	DbUser             string
+	DbPassword         string
+	GithubClientId     string
+	GithubClientSecret string
+
+	StorageAccessKeyID     string
+	StorageSecretAccessKey string
+	StorageEndpoint        string
+
+	Env Environment
 }
 
 type Environment int
@@ -52,24 +55,26 @@ func NewEnvironmentService() (*EnvironmentService, error) {
 }
 
 func (e *EnvironmentService) load() error {
-	e.baseURL = e.getEnvOrDefault("BASE_URL", "http://localhost:6900")
-	e.dbHost = e.getEnvOrDefault("DB_HOST", "localhost")
-	e.dbName = e.getEnvOrDefault("DB_NAME", "oliverbutler")
-	e.dbUser = e.getEnvOrDefault("DB_USER", "postgres")
-	e.dbPassword = e.getEnvOrDefault("DB_PASSWORD", "password")
+	e.BaseURL = e.getEnvOrDefault("BASE_URL", "http://localhost:6900")
+	e.DbHost = e.getEnvOrDefault("DB_HOST", "localhost")
+	e.DbName = e.getEnvOrDefault("DB_NAME", "oliverbutler")
+	e.DbUser = e.getEnvOrDefault("DB_USER", "postgres")
+	e.DbPassword = e.getEnvOrDefault("DB_PASSWORD", "password")
 
-	e.dbPort = e.getEnvOrDefault("DB_PORT", "5432")
+	e.DbPort = e.getEnvOrDefault("DB_PORT", "5432")
 
-	e.rootStoragePath = e.getEnvOrDefault("ROOT_STORAGE_PATH", "/tmp/storage")
+	e.GithubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
+	e.GithubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
 
-	e.githubClientId = e.getEnvOrDefault("GITHUB_CLIENT_ID", "")
-	e.githubClientSecret = e.getEnvOrDefault("GITHUB_CLIENT_SECRET", "")
+	e.StorageAccessKeyID = e.getEnvOrDefault("STORAGE_ACCESS_KEY_ID", "")
+	e.StorageSecretAccessKey = e.getEnvOrDefault("STORAGE_SECRET_ACCESS_KEY", "")
+	e.StorageEndpoint = e.getEnvOrDefault("STORAGE_ENDPOINT", "")
 
 	envString := e.getEnvOrDefault("ENV", "local")
 	if envString == "production" {
-		e.env = Production
+		e.Env = Production
 	} else {
-		e.env = Local
+		e.Env = Local
 	}
 
 	return nil
@@ -82,65 +87,10 @@ func (e *EnvironmentService) getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func (e *EnvironmentService) getEnvAsInt(key string, defaultValue int) (int, error) {
-	if value, exists := os.LookupEnv(key); exists {
-		return strconv.Atoi(value)
-	}
-	return defaultValue, nil
-}
-
-func (e *EnvironmentService) getEnvAsBool(key string, defaultValue bool) bool {
-	if value, exists := os.LookupEnv(key); exists {
-		return value == "true" || value == "1"
-	}
-	return defaultValue
-}
-
-// Getter methods
-func (e *EnvironmentService) GetBaseURL() string {
-	return e.baseURL
-}
-
 func (e *EnvironmentService) GetDomain() string {
-	parsedURL, err := url.Parse(e.baseURL)
+	parsedURL, err := url.Parse(e.BaseURL)
 	if err != nil {
 		return ""
 	}
 	return parsedURL.Hostname()
-}
-
-func (e *EnvironmentService) GetDbHost() string {
-	return e.dbHost
-}
-
-func (e *EnvironmentService) GetDbPort() string {
-	return e.dbPort
-}
-
-func (e *EnvironmentService) GetDbName() string {
-	return e.dbName
-}
-
-func (e *EnvironmentService) GetDbUser() string {
-	return e.dbUser
-}
-
-func (e *EnvironmentService) GetDbPassword() string {
-	return e.dbPassword
-}
-
-func (e *EnvironmentService) GetRootStoragePath() string {
-	return e.rootStoragePath
-}
-
-func (e *EnvironmentService) GetEnv() Environment {
-	return e.env
-}
-
-func (e *EnvironmentService) GetGithubClientId() string {
-	return e.githubClientId
-}
-
-func (e *EnvironmentService) GetGithubClientSecret() string {
-	return e.githubClientSecret
 }

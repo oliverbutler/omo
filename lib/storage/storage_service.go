@@ -2,12 +2,17 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"oliverbutler/lib/environment"
 	"oliverbutler/lib/tracing"
-	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -19,6 +24,7 @@ type FileItem struct {
 	ContentType string
 	Folder      string
 	Bucket      string
+	URL         string // Added URL field for direct access
 }
 
 // StorageRepo defines the interface for storage operations
@@ -26,49 +32,66 @@ type StorageRepo interface {
 	PutItem(ctx context.Context, bucket, folder string, name string, reader io.Reader, size int64, contentType string) (*FileItem, error)
 	GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error)
 	DeleteItem(ctx context.Context, bucket, folder, name string) error
-	DeleteFolder(ctx context.Context, bucket, folder string) error
 	ListItems(ctx context.Context, bucket, folder string) ([]*FileItem, error)
 	GetItemContent(ctx context.Context, item *FileItem) (io.ReadCloser, error)
 }
 
-// LocalStorageRepo implements StorageRepo for local file system
-type LocalStorageRepo struct {
-	env *environment.EnvironmentService
+// S3StorageRepo implements StorageRepo for S3-compatible storage
+type S3StorageRepo struct {
+	client   *s3.Client
+	endpoint string
 }
 
 type StorageService struct {
 	StorageRepo StorageRepo
 }
 
-func NewStorageService(env *environment.EnvironmentService) (*StorageService, error) {
-	storageRepo := NewLocalStorageRepo(env)
+func NewStorageService(ctx context.Context, env *environment.EnvironmentService) (*StorageService, error) {
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(env.StorageAccessKeyID, env.StorageSecretAccessKey, "")),
+		config.WithRegion("auto"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load SDK config: %w", err)
+	}
+
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(env.StorageEndpoint)
+	})
+
+	storageRepo := &S3StorageRepo{
+		client:   client,
+		endpoint: "https://s3.mypacktracker.com",
+	}
+
 	return &StorageService{StorageRepo: storageRepo}, nil
 }
 
-// NewLocalStorageRepo creates a new LocalStorageRepo
-func NewLocalStorageRepo(env *environment.EnvironmentService) *LocalStorageRepo {
-	return &LocalStorageRepo{env}
+func (s *S3StorageRepo) GetURL(folder, name string) string {
+	return fmt.Sprintf("%s/%s/%s", s.endpoint, folder, name)
 }
 
 // PutItem uploads an item to the specified bucket and folder
-func (l *LocalStorageRepo) PutItem(ctx context.Context, bucket, folder string, name string, reader io.Reader, size int64, contentType string) (*FileItem, error) {
-	rootStoragePath := l.env.GetRootStoragePath()
+func (s *S3StorageRepo) PutItem(ctx context.Context, bucket, folder string, name string, reader io.Reader, size int64, contentType string) (*FileItem, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "S3StorageRepo.PutItem")
+	defer span.End()
 
-	fullPath := filepath.Join(rootStoragePath, bucket, folder, name)
-	err := os.MkdirAll(filepath.Dir(fullPath), 0755)
-	if err != nil {
-		return nil, err
+	key := folder + "/" + name
+	if folder == "" {
+		key = name
 	}
 
-	file, err := os.Create(fullPath)
-	if err != nil {
-		return nil, err
+	input := &s3.PutObjectInput{
+		Bucket:        aws.String(bucket),
+		Key:           aws.String(key),
+		Body:          reader,
+		ContentLength: aws.Int64(size),
+		ContentType:   aws.String(contentType),
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, reader)
+	_, err := s.client.PutObject(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to upload file: %w", err)
 	}
 
 	return &FileItem{
@@ -77,80 +100,109 @@ func (l *LocalStorageRepo) PutItem(ctx context.Context, bucket, folder string, n
 		ContentType: contentType,
 		Folder:      folder,
 		Bucket:      bucket,
+		URL:         s.GetURL(folder, name),
 	}, nil
 }
 
 // GetItem retrieves metadata for an item
-func (l *LocalStorageRepo) GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error) {
-	ctx, span := tracing.OmoTracer.Start(ctx, "GetItem", trace.WithAttributes(attribute.String("bucket", bucket), attribute.String("folder", folder), attribute.String("name", name)), trace.WithSpanKind(trace.SpanKindClient))
+func (s *S3StorageRepo) GetItem(ctx context.Context, bucket, folder, name string) (*FileItem, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "S3StorageRepo.GetItem",
+		trace.WithAttributes(
+			attribute.String("bucket", bucket),
+			attribute.String("folder", folder),
+			attribute.String("name", name),
+		))
 	defer span.End()
 
-	rootStoragePath := l.env.GetRootStoragePath()
+	key := folder + "/" + name
+	if folder == "" {
+		key = name
+	}
 
-	fullPath := filepath.Join(rootStoragePath, bucket, folder, name)
-	info, err := os.Stat(fullPath)
+	headInput := &s3.HeadObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+
+	result, err := s.client.HeadObject(ctx, headInput)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get object metadata: %w", err)
 	}
 
 	return &FileItem{
 		Name:        name,
-		Size:        info.Size(),
-		ContentType: "", // Local storage doesn't store content type
+		Size:        *result.ContentLength,
+		ContentType: aws.ToString(result.ContentType),
 		Folder:      folder,
 		Bucket:      bucket,
+		URL:         s.GetURL(folder, name),
 	}, nil
 }
 
 // DeleteItem removes an item from storage
-func (l *LocalStorageRepo) DeleteItem(ctx context.Context, bucket, folder, name string) error {
-	rootStoragePath := l.env.GetRootStoragePath()
+func (s *S3StorageRepo) DeleteItem(ctx context.Context, bucket, folder, name string) error {
+	ctx, span := tracing.OmoTracer.Start(ctx, "S3StorageRepo.DeleteItem")
+	defer span.End()
 
-	fullPath := filepath.Join(rootStoragePath, bucket, folder, name)
-	return os.Remove(fullPath)
+	key := folder + "/" + name
+	if folder == "" {
+		key = name
+	}
+
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+
+	_, err := s.client.DeleteObject(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to delete object: %w", err)
+	}
+
+	return nil
 }
 
 // ListItems lists all items in a folder
-func (l *LocalStorageRepo) ListItems(ctx context.Context, bucket, folder string) ([]*FileItem, error) {
-	rootStoragePath := l.env.GetRootStoragePath()
+func (s *S3StorageRepo) ListItems(ctx context.Context, bucket, folder string) ([]*FileItem, error) {
+	ctx, span := tracing.OmoTracer.Start(ctx, "S3StorageRepo.ListItems")
+	defer span.End()
+
+	prefix := folder
+	if folder != "" && !strings.HasSuffix(folder, "/") {
+		prefix += "/"
+	}
+
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(prefix),
+	}
 
 	var items []*FileItem
-	fullPath := filepath.Join(rootStoragePath, bucket, folder)
-
-	err := filepath.Walk(fullPath, func(path string, info os.FileInfo, err error) error {
+	paginator := s3.NewListObjectsV2Paginator(s.client, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("failed to list objects: %w", err)
 		}
-		if !info.IsDir() {
-			relPath, _ := filepath.Rel(fullPath, path)
+
+		for _, obj := range page.Contents {
+			key := aws.ToString(obj.Key)
+			name := filepath.Base(key)
+			folderPath := filepath.Dir(key)
+			if folderPath == "." {
+				folderPath = ""
+			}
+
 			items = append(items, &FileItem{
-				Name:        info.Name(),
-				Size:        info.Size(),
-				ContentType: "", // Local storage doesn't store content type
-				Folder:      filepath.Dir(relPath),
+				Name:        name,
+				Size:        *obj.Size,
+				ContentType: "", // ContentType not available in list operation
+				Folder:      folderPath,
 				Bucket:      bucket,
+				URL:         s.GetURL(folder, name),
 			})
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return items, nil
-}
-
-// GetItemContent retrieves the content of an item
-func (l *LocalStorageRepo) GetItemContent(ctx context.Context, item *FileItem) (io.ReadCloser, error) {
-	rootStoragePath := l.env.GetRootStoragePath()
-
-	fullPath := filepath.Join(rootStoragePath, item.Bucket, item.Folder, item.Name)
-	return os.Open(fullPath)
-}
-
-func (l *LocalStorageRepo) DeleteFolder(ctx context.Context, bucket, folder string) error {
-	rootStoragePath := l.env.GetRootStoragePath()
-
-	fullPath := filepath.Join(rootStoragePath, bucket, folder)
-	return os.RemoveAll(fullPath)
 }

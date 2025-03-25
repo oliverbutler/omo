@@ -21,7 +21,7 @@ type DatabaseService struct {
 }
 
 func NewDatabaseService(ctx context.Context, env *environment.EnvironmentService) (*DatabaseService, error) {
-	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", env.GetDbUser(), env.GetDbPassword(), env.GetDbHost(), env.GetDbPort(), env.GetDbName())
+	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", env.DbUser, env.DbPassword, env.DbHost, env.DbPort, env.DbName)
 
 	cfg, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
@@ -44,7 +44,7 @@ func NewDatabaseService(ctx context.Context, env *environment.EnvironmentService
 		return nil, err
 	}
 
-	logging.OmoLogger.Info(fmt.Sprintf("Connected to database: %s at %s:%s", env.GetDbName(), env.GetDbHost(), env.GetDbPort()))
+	logging.OmoLogger.Info(fmt.Sprintf("Connected to database: %s at %s:%s", env.DbName, env.DbHost, env.DbPort))
 
 	gooseProvider, err := goose.NewProvider(goose.DialectPostgres, db, os.DirFS("./migrations"))
 
